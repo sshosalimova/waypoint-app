@@ -1,5 +1,3 @@
-
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -117,12 +115,8 @@
 <div id="app"></div>
 
 <script>
-/* =========================================================================
-   FILL THESE IN after creating your Supabase project (Project Settings > API).
-   Both are safe to expose publicly - they are NOT secret keys.
-   ========================================================================= */
-const SUPABASE_URL = "https://qpxzsdtwqbqsfjjlxkgi.supabase.co"
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFweHpzZHR3cWJxc2Zqamx4a2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTQ0MTQsImV4cCI6MjEwMTQ3MDQxNH0.11dlYNPCMiq4NyXOJTos1kZIl1AZBLNB3h0sXmsIRqs"
+const SUPABASE_URL = "https://qpxzsdtwqbqsfjjlxkgi.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFweHpzZHR3cWJxc2Zqamx4a2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTQ0MTQsImV4cCI6MjEwMTQ3MDQxNH0.11dlYNPCMiq4NyXOJTos1kZIl1AZBLNB3h0sXmsIRqs";
 
 const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
@@ -172,11 +166,54 @@ let state = {
 };
 
 /* ============================= AUTH ============================= */
-async function sendMagicLink(email){
-  const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href } });
-  return error;
+async function signUpUser(username, email, password){
+  const clean = username.trim().toLowerCase();
+  const { error } = await sb.auth.signUp({
+    email, password,
+    options:{ data:{ username: clean }, emailRedirectTo: window.location.href }
+  });
+  if(error) return error.message;
+  try{
+    const r = await fetch('/api/register-username', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username: clean, email })
+    });
+    const json = await r.json();
+    if(!r.ok) return json.error || 'Could not reserve that username.';
+  }catch(e){ return 'Could not reserve that username.'; }
+  return null;
 }
-async function signOut(){ await sb.auth.signOut(); state.session=null; state.profile=null; state.screen='authScreen'; render(); }
+async function loginUser(username, password){
+  try{
+    const lookup = await fetch('/api/login-lookup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username: username.trim().toLowerCase() })
+    });
+    const lookupJson = await lookup.json();
+    if(!lookup.ok) return lookupJson.error || 'Incorrect username or password.';
+    const { error } = await sb.auth.signInWithPassword({ email: lookupJson.email, password });
+    if(error) return 'Incorrect username or password.';
+    return null;
+  }catch(e){ return 'Something went wrong signing in.'; }
+}
+async function requestPasswordReset(username){
+  try{
+    const lookup = await fetch('/api/login-lookup', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ username: username.trim().toLowerCase() })
+    });
+    const lookupJson = await lookup.json();
+    if(!lookup.ok) return lookupJson.error || 'Username not found.';
+    const { error } = await sb.auth.resetPasswordForEmail(lookupJson.email, { redirectTo: window.location.href });
+    if(error) return error.message;
+    return null;
+  }catch(e){ return 'Something went wrong sending the reset email.'; }
+}
+async function setNewPassword(password){
+  const { error } = await sb.auth.updateUser({ password });
+  return error ? error.message : null;
+}
+async function signOut(){ await sb.auth.signOut(); state.session=null; state.profile=null; state.screen='loginScreen'; render(); }
 
 /* ============================= BACKEND CALLS ============================= */
 async function authedFetch(path, opts={}){
@@ -228,54 +265,156 @@ function extractJSON(text){
 function render(){
   const app = document.getElementById('app'); app.innerHTML = '';
   const map = {
-    loading: renderLoading, authScreen: renderAuthScreen, checkEmail: renderCheckEmail,
+    loading: renderLoading, loginScreen: renderLoginScreen, signUpScreen: renderSignUpScreen,
+    checkEmail: renderCheckEmail, forgotPassword: renderForgotPassword, resetPassword: renderResetPassword,
     welcome: renderWelcome, diagnostic: renderDiagnostic, diagResult: renderDiagResult,
     dashboard: renderDashboard, stageDetail: renderStageDetail, conversation: renderConversation,
     scoring: renderScoring, scoreResult: renderScoreResult, targetedPractice: renderTargetedPractice,
   };
-  (map[state.screen] || renderAuthScreen)(app);
+  (map[state.screen] || renderLoginScreen)(app);
 }
 function renderLoading(app){
   app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading Waypoint…</p></div>`;
 }
 
 /* ============================= AUTH SCREENS ============================= */
-function renderAuthScreen(app){
+function renderLoginScreen(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover">
       <div class="stamp-mark">WAY<br>POINT</div>
       <span class="eyebrow">English for real life</span>
       <h1>Waypoint</h1>
-      <p>Practice English the way you'll actually use it. Sign in with your email to save your progress.</p>
+      <p>Practice English the way you'll actually use it.</p>
     </div>
     <div class="card">
       ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
-      <h3>Sign in</h3>
-      <p class="muted" style="margin-top:-4px;">We'll email you a one-time sign-in link — no password needed.</p>
-      <input type="email" id="emailInput" placeholder="you@example.com" style="margin:12px 0;">
-      <button class="btn block" id="sendLinkBtn">Send sign-in link →</button>
+      <h3>Log in</h3>
+      <input type="text" id="userInput" placeholder="Username" style="margin:12px 0 10px;">
+      <input type="text" id="passInput" placeholder="Password" style="margin-bottom:16px;" data-pw="1">
+      <button class="btn block" id="loginBtn">Log in →</button>
+      <div class="row" style="justify-content:space-between;margin-top:14px;">
+        <button class="back-link" id="forgotLink">Forgot password?</button>
+        <button class="back-link" id="signUpLink">Need an account? Sign up</button>
+      </div>
     </div>
   `;
   app.appendChild(div);
-  div.querySelector('#sendLinkBtn').addEventListener('click', async ()=>{
+  const passEl = div.querySelector('#passInput'); passEl.type='password';
+  div.querySelector('#loginBtn').addEventListener('click', async ()=>{
+    const username = div.querySelector('#userInput').value.trim();
+    const password = passEl.value;
+    if(!username || !password){ state.authError='Please enter both a username and password.'; render(); return; }
+    div.querySelector('#loginBtn').disabled = true;
+    const error = await loginUser(username, password);
+    if(error){ state.authError = error; render(); return; }
+    state.authError = null;
+  });
+  div.querySelector('#forgotLink').addEventListener('click', ()=>{ state.authError=null; state.screen='forgotPassword'; render(); });
+  div.querySelector('#signUpLink').addEventListener('click', ()=>{ state.authError=null; state.screen='signUpScreen'; render(); });
+}
+function renderSignUpScreen(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover">
+      <div class="stamp-mark">WAY<br>POINT</div>
+      <span class="eyebrow">English for real life</span>
+      <h1>Create your account</h1>
+      <p>Takes under a minute.</p>
+    </div>
+    <div class="card">
+      ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
+      <input type="text" id="userInput" placeholder="Choose a username" style="margin-bottom:10px;">
+      <input type="email" id="emailInput" placeholder="you@example.com" style="margin-bottom:10px;">
+      <input type="text" id="passInput" placeholder="Choose a password" style="margin-bottom:10px;" data-pw="1">
+      <input type="text" id="passInput2" placeholder="Confirm password" style="margin-bottom:16px;" data-pw="1">
+      <button class="btn block" id="signUpBtn">Create account →</button>
+      <div style="margin-top:14px;">
+        <button class="back-link" id="backToLogin">Already have an account? Log in</button>
+      </div>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#passInput').type='password';
+  div.querySelector('#passInput2').type='password';
+  div.querySelector('#signUpBtn').addEventListener('click', async ()=>{
+    const username = div.querySelector('#userInput').value.trim();
     const email = div.querySelector('#emailInput').value.trim();
-    if(!email){ state.authError='Please enter an email address.'; render(); return; }
-    div.querySelector('#sendLinkBtn').disabled = true;
-    const error = await sendMagicLink(email);
-    if(error){ state.authError = error.message; render(); return; }
+    const pw1 = div.querySelector('#passInput').value;
+    const pw2 = div.querySelector('#passInput2').value;
+    if(!username || !email || !pw1){ state.authError='Please fill in every field.'; render(); return; }
+    if(pw1 !== pw2){ state.authError='Passwords do not match.'; render(); return; }
+    if(pw1.length < 8){ state.authError='Password must be at least 8 characters.'; render(); return; }
+    div.querySelector('#signUpBtn').disabled = true;
+    const error = await signUpUser(username, email, pw1);
+    if(error){ state.authError = error; render(); return; }
     state.authError = null; state.lastEmail = email;
+    state.checkEmailMode = 'signup';
     state.screen='checkEmail'; render();
+  });
+  div.querySelector('#backToLogin').addEventListener('click', ()=>{ state.authError=null; state.screen='loginScreen'; render(); });
+}
+function renderForgotPassword(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="card" style="margin-top:60px;">
+      ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
+      <h3>Reset your password</h3>
+      <p class="muted" style="margin-top:-4px;">Enter your username and we'll email you a reset link.</p>
+      <input type="text" id="userInput" placeholder="Username" style="margin:12px 0 16px;">
+      <button class="btn block" id="sendResetBtn">Send reset link →</button>
+      <div style="margin-top:14px;"><button class="back-link" id="backToLogin">Back to log in</button></div>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#sendResetBtn').addEventListener('click', async ()=>{
+    const username = div.querySelector('#userInput').value.trim();
+    if(!username){ state.authError='Please enter your username.'; render(); return; }
+    div.querySelector('#sendResetBtn').disabled = true;
+    const error = await requestPasswordReset(username);
+    if(error){ state.authError = error; render(); return; }
+    state.authError = null; state.checkEmailMode = 'reset';
+    state.screen='checkEmail'; render();
+  });
+  div.querySelector('#backToLogin').addEventListener('click', ()=>{ state.authError=null; state.screen='loginScreen'; render(); });
+}
+function renderResetPassword(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="card" style="margin-top:60px;">
+      ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
+      <h3>Choose a new password</h3>
+      <input type="text" id="passInput" placeholder="New password" style="margin:12px 0 10px;" data-pw="1">
+      <input type="text" id="passInput2" placeholder="Confirm new password" style="margin-bottom:16px;" data-pw="1">
+      <button class="btn block" id="saveBtn">Save new password →</button>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#passInput').type='password';
+  div.querySelector('#passInput2').type='password';
+  div.querySelector('#saveBtn').addEventListener('click', async ()=>{
+    const pw1 = div.querySelector('#passInput').value;
+    const pw2 = div.querySelector('#passInput2').value;
+    if(pw1.length < 8){ state.authError='Password must be at least 8 characters.'; render(); return; }
+    if(pw1 !== pw2){ state.authError='Passwords do not match.'; render(); return; }
+    div.querySelector('#saveBtn').disabled = true;
+    const error = await setNewPassword(pw1);
+    if(error){ state.authError = error; render(); return; }
+    state.authError = null;
+    await boot();
   });
 }
 function renderCheckEmail(app){
+  const isSignup = state.checkEmailMode === 'signup';
   app.innerHTML = `<div class="card center" style="margin-top:60px;">
     <div style="font-size:36px;">📬</div>
     <h2>Check your inbox</h2>
-    <p class="muted">We sent a sign-in link to <strong>${state.lastEmail||'your email'}</strong>. Open it on this device to continue.</p>
-    <button class="btn secondary" id="back" style="margin-top:10px;">Use a different email</button>
+    <p class="muted">${isSignup
+      ? `We sent a confirmation link to <strong>${state.lastEmail||'your email'}</strong>. Click it to activate your account, then come back and log in.`
+      : `We sent a password reset link to your email. Open it on this device to choose a new password.`}</p>
+    <button class="btn secondary" id="back" style="margin-top:10px;">Back to log in</button>
   </div>`;
-  app.querySelector('#back').addEventListener('click', ()=>{ state.screen='authScreen'; render(); });
+  app.querySelector('#back').addEventListener('click', ()=>{ state.screen='loginScreen'; render(); });
 }
 
 /* ============================= WELCOME (first-time profile setup) ============================= */
@@ -633,7 +772,7 @@ async function boot(){
   state.screen = 'loading'; render();
   const { data } = await sb.auth.getSession();
   state.session = data.session;
-  if(!state.session){ state.screen='authScreen'; render(); return; }
+  if(!state.session){ state.screen='loginScreen'; render(); return; }
   try{
     await loadProfileFromServer();
     state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
@@ -644,8 +783,9 @@ async function boot(){
 }
 sb.auth.onAuthStateChange((event, session)=>{
   state.session = session;
+  if(event === 'PASSWORD_RECOVERY'){ state.screen='resetPassword'; render(); return; }
   if(event === 'SIGNED_IN'){ boot(); }
-  if(event === 'SIGNED_OUT'){ state.screen='authScreen'; render(); }
+  if(event === 'SIGNED_OUT'){ state.screen='loginScreen'; render(); }
 });
 boot();
 </script>
