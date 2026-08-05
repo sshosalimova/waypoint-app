@@ -1,0 +1,653 @@
+
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Waypoint — Learn English for Real Life</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --ink:#16233B; --paper:#F6EFDD; --paper2:#EFE5C6; --stamp:#B23A2E; --teal:#1F7A72;
+    --gold:#C99A3E; --line:#D8CBA8; --muted:#6B6152; --white:#FFFDF7; --danger:#B23A2E; --good:#1F7A72; --radius:14px;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{background:var(--paper);color:var(--ink);font-family:'Inter',system-ui,sans-serif;min-height:100vh;
+    background-image:radial-gradient(circle at 1px 1px, rgba(22,35,59,0.06) 1px, transparent 0);background-size:22px 22px;}
+  #app{max-width:720px;margin:0 auto;padding:20px 18px 60px;min-height:100vh;}
+  h1,h2,h3{font-family:'Fraunces',serif;font-weight:600;margin:0 0 6px;letter-spacing:-0.01em;}
+  h1{font-size:30px;} h2{font-size:22px;} h3{font-size:17px;}
+  p{line-height:1.5;color:var(--ink);}
+  .muted{color:var(--muted);font-size:14px;}
+  .mono{font-family:'Space Mono',monospace;}
+  button{font-family:'Inter',sans-serif;cursor:pointer;border:none;}
+  .btn{background:var(--ink);color:var(--white);padding:13px 22px;border-radius:999px;font-weight:600;font-size:15px;
+    transition:transform .15s ease, box-shadow .15s ease;display:inline-flex;align-items:center;gap:8px;}
+  .btn:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(22,35,59,0.25);}
+  .btn:disabled{opacity:0.4;cursor:not-allowed;transform:none;box-shadow:none;}
+  .btn.secondary{background:transparent;color:var(--ink);border:1.5px solid var(--ink);}
+  .btn.stamp{background:var(--stamp);color:var(--white);}
+  .btn.teal{background:var(--teal);color:var(--white);}
+  .btn.block{width:100%;justify-content:center;}
+  .card{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);padding:20px;margin-bottom:14px;
+    box-shadow:0 1px 0 rgba(22,35,59,0.04);}
+  .eyebrow{text-transform:uppercase;letter-spacing:.12em;font-size:11px;font-weight:700;color:var(--teal);margin-bottom:8px;display:block;}
+  .divider{border:none;border-top:1.5px dashed var(--line);margin:16px 0;}
+  input[type=text], input[type=email], textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
+    font-family:'Inter',sans-serif;font-size:15px;background:var(--white);color:var(--ink);}
+  input:focus, textarea:focus{outline:none;border-color:var(--teal);}
+  .hidden{display:none !important;}
+  .row{display:flex;gap:10px;flex-wrap:wrap;}
+  .center{text-align:center;}
+  .error-box{background:#FBEAE7;border:1px solid #F0C7BF;color:var(--stamp);padding:10px 14px;border-radius:10px;font-size:13.5px;margin-bottom:12px;}
+  .cover{background:var(--ink);color:var(--paper);border-radius:20px;padding:36px 24px;margin-bottom:20px;position:relative;overflow:hidden;}
+  .cover::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(135deg, rgba(246,239,221,0.035) 0 2px, transparent 2px 14px);}
+  .cover .eyebrow{color:var(--gold);}
+  .cover h1{color:var(--paper);font-size:34px;}
+  .cover p{color:#D9D2B8;}
+  .stamp-mark{position:absolute;right:18px;top:18px;width:64px;height:64px;border:2px solid var(--stamp);border-radius:50%;
+    display:flex;align-items:center;justify-content:center;transform:rotate(-12deg);color:var(--stamp);font-family:'Space Mono',monospace;
+    font-size:10px;text-align:center;line-height:1.2;font-weight:700;background:rgba(178,58,46,0.08);}
+  .path-choice{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:16px 0;}
+  .path-card{border:1.5px solid var(--line);border-radius:12px;padding:16px;background:var(--white);cursor:pointer;
+    transition:border-color .15s, transform .15s;}
+  .path-card:hover{transform:translateY(-2px);}
+  .path-card.selected{border-color:var(--teal);box-shadow:0 0 0 2px var(--teal) inset;}
+  .progress-bar{height:6px;background:var(--paper2);border-radius:4px;overflow:hidden;margin-bottom:18px;}
+  .progress-bar > div{height:100%;background:var(--teal);transition:width .3s ease;}
+  .option{display:block;width:100%;text-align:left;background:var(--white);border:1.5px solid var(--line);border-radius:10px;
+    padding:13px 16px;margin-bottom:9px;font-size:15px;color:var(--ink);transition:border-color .12s, background .12s;}
+  .option:hover{border-color:var(--teal);}
+  .option.picked{border-color:var(--teal);background:#EAF4F2;}
+  .journey-scroll{display:flex;overflow-x:auto;padding:22px 6px 14px;gap:0;-webkit-overflow-scrolling:touch;}
+  .stop{display:flex;flex-direction:column;align-items:center;flex-shrink:0;width:74px;position:relative;}
+  .stop .track{position:absolute;top:20px;left:-37px;width:74px;height:2px;
+    background:repeating-linear-gradient(90deg, var(--line) 0 6px, transparent 6px 11px);z-index:0;}
+  .stop:first-child .track{display:none;}
+  .node{width:40px;height:40px;border-radius:50%;border:2px solid var(--line);background:var(--white);display:flex;
+    align-items:center;justify-content:center;font-family:'Space Mono',monospace;font-weight:700;font-size:13px;color:var(--muted);
+    position:relative;z-index:1;transition:all .15s;}
+  .node.done{background:var(--teal);border-color:var(--teal);color:var(--white);}
+  .node.current{background:var(--stamp);border-color:var(--stamp);color:var(--white);box-shadow:0 0 0 4px rgba(178,58,46,0.18);}
+  .node.locked{color:#B9AF95;}
+  .stop-label{font-size:10px;color:var(--muted);margin-top:6px;text-align:center;line-height:1.2;max-width:70px;}
+  .stop.clickable{cursor:pointer;}
+  .level-pill{display:inline-block;background:var(--gold);color:var(--ink);font-family:'Space Mono',monospace;font-weight:700;
+    font-size:12px;padding:4px 10px;border-radius:999px;}
+  .lesson-row{display:flex;align-items:center;justify-content:space-between;padding:14px 4px;border-bottom:1px dashed var(--line);}
+  .lesson-row:last-child{border-bottom:none;}
+  .lesson-info{display:flex;align-items:center;gap:12px;}
+  .lesson-icon{width:38px;height:38px;border-radius:10px;background:var(--paper2);display:flex;align-items:center;justify-content:center;
+    font-size:17px;flex-shrink:0;}
+  .chat-wrap{background:var(--white);border:1px solid var(--line);border-radius:var(--radius);display:flex;flex-direction:column;
+    height:60vh;overflow:hidden;}
+  .chat-head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;align-items:center;justify-content:space-between;
+    background:var(--paper2);}
+  .chat-log{flex:1;overflow-y:auto;padding:16px;display:flex;flex-direction:column;gap:12px;}
+  .msg{max-width:80%;padding:10px 14px;border-radius:14px;font-size:14.5px;line-height:1.45;}
+  .msg.ai{background:var(--paper2);align-self:flex-start;border-bottom-left-radius:4px;}
+  .msg.user{background:var(--ink);color:var(--white);align-self:flex-end;border-bottom-right-radius:4px;}
+  .msg.system{align-self:center;color:var(--muted);font-size:12px;font-style:italic;}
+  .chat-input-row{display:flex;gap:8px;padding:12px;border-top:1px solid var(--line);}
+  .speed-row{display:flex;align-items:center;gap:10px;padding:8px 16px;border-top:1px dashed var(--line);font-size:12px;color:var(--muted);}
+  .speed-row input[type=range]{flex:1;}
+  .timer{font-family:'Space Mono',monospace;font-weight:700;font-size:14px;}
+  .mic-btn{width:44px;height:44px;border-radius:50%;background:var(--paper2);flex-shrink:0;font-size:18px;}
+  .mic-btn.recording{background:var(--stamp);color:white;}
+  .score-bar-row{margin-bottom:14px;}
+  .score-bar-label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;}
+  .score-bar-track{height:10px;background:var(--paper2);border-radius:6px;overflow:hidden;}
+  .score-bar-fill{height:100%;background:var(--teal);border-radius:6px;transition:width .6s ease;}
+  .mistake-chip{display:inline-block;background:#FBEAE7;color:var(--stamp);border:1px solid #F0C7BF;padding:5px 11px;
+    border-radius:999px;font-size:12.5px;margin:3px 4px 3px 0;}
+  .spinner{width:26px;height:26px;border:3px solid var(--paper2);border-top-color:var(--teal);border-radius:50%;
+    animation:spin .8s linear infinite;margin:0 auto;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
+  .back-link{color:var(--muted);font-size:14px;background:none;padding:6px 0;}
+  .back-link:hover{color:var(--ink);}
+  @media (max-width:420px){.path-choice{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<script>
+/* =========================================================================
+   FILL THESE IN after creating your Supabase project (Project Settings > API).
+   Both are safe to expose publicly - they are NOT secret keys.
+   ========================================================================= */
+const SUPABASE_URL = "https://qpxzsdtwqbqsfjjlxkgi.supabase.co"
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InFweHpzZHR3cWJxc2Zqamx4a2dpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODU4OTQ0MTQsImV4cCI6MjEwMTQ3MDQxNH0.11dlYNPCMiq4NyXOJTos1kZIl1AZBLNB3h0sXmsIRqs"
+
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+/* ============================= DATA ============================= */
+const CEFR = ["A1","A2","B1","B2","C1","C2"];
+const STAGES = [
+  {n:1, title:"First Hello", theme:"Introducing yourself", cefr:"A1", icon:"👋", scenario:"You meet a new neighbor. Introduce yourself: your name, where you're from, and one thing you like."},
+  {n:2, title:"Family Talk", theme:"Talking about family & friends", cefr:"A1", icon:"👨‍👩‍👧", scenario:"A classmate asks about your family. Describe two family members."},
+  {n:3, title:"Numbers & Time", theme:"Time, dates, numbers", cefr:"A1", icon:"🕒", scenario:"You're arranging to meet a friend. Agree on a day and time."},
+  {n:4, title:"At the Store", theme:"Shopping basics", cefr:"A2", icon:"🛍️", scenario:"You're in a clothing store. Ask about sizes, colors, and the price of an item."},
+  {n:5, title:"Order Up", theme:"Ordering food at a restaurant", cefr:"A2", icon:"🍽️", scenario:"You're at a café ordering food. The server will greet you and ask what you'd like."},
+  {n:6, title:"Which Way?", theme:"Asking for and giving directions", cefr:"A2", icon:"🧭", scenario:"You're lost downtown. Ask a stranger for directions to the train station."},
+  {n:7, title:"Small Talk", theme:"Weather & everyday chit-chat", cefr:"B1", icon:"☀️", scenario:"You're waiting for a bus next to a stranger. Make small talk about the weather and your day."},
+  {n:8, title:"Let's Plan", theme:"Making plans with friends", cefr:"B1", icon:"📅", scenario:"You're planning a weekend outing with a friend. Discuss options and agree on a plan."},
+  {n:9, title:"Feeling Off", theme:"Health & the pharmacy", cefr:"B1", icon:"💊", scenario:"You go to a pharmacy because you don't feel well. Describe your symptoms and ask for advice."},
+  {n:10, title:"On the Job", theme:"Talking about school or work", cefr:"B2", icon:"💼", scenario:"A coworker asks about your job or studies and your typical day. Have a natural conversation."},
+  {n:11, title:"Ring Ring", theme:"Phone calls", cefr:"B2", icon:"📞", scenario:"You're calling a clinic to reschedule an appointment. Explain the situation and find a new time."},
+  {n:12, title:"That's Not Right", theme:"Complaints & problem solving", cefr:"B2", icon:"⚠️", scenario:"Your food delivery order arrived wrong. Call customer service and resolve the issue."},
+  {n:13, title:"The Interview", theme:"Job interview practice", cefr:"C1", icon:"🗂️", scenario:"You're in a job interview. Answer questions about your strengths and experience persuasively."},
+  {n:14, title:"I Disagree", theme:"Debating an opinion", cefr:"C1", icon:"⚖️", scenario:"You're in a friendly debate about whether remote work is better than office work. Defend a position."},
+  {n:15, title:"Your Take", theme:"Sharing nuanced opinions", cefr:"C2", icon:"💬", scenario:"A podcast host asks for your nuanced opinion on a current social issue. Speak at length, with structure."}
+];
+const DIAGNOSTIC = [
+  {level:"A1", q:"I ___ a student.", options:["am","is","be","are"], a:0},
+  {level:"A1", q:"Choose the correct word: \"She ___ from Mexico.\"", options:["come","comes","coming","comed"], a:1},
+  {level:"A1", q:"What time ___ it?", options:["is","are","do","does"], a:0},
+  {level:"A2", q:"Yesterday, I ___ to the market.", options:["go","goes","went","going"], a:2},
+  {level:"A2", q:"There ___ many people at the party last night.", options:["was","were","is","be"], a:1},
+  {level:"A2", q:"Choose the best word: \"Can you tell me ___ the bus stop is?\"", options:["where","what","who","when"], a:0},
+  {level:"B1", q:"By the time we arrived, the movie ___ already ___.", options:["has / started","had / started","have / start","was / start"], a:1},
+  {level:"B1", q:"If I ___ more time, I would learn another language.", options:["have","had","will have","has"], a:1},
+  {level:"B1", q:"She's been working here ___ five years.", options:["since","for","from","during"], a:1},
+  {level:"B2", q:"He suggested ___ the meeting until Friday.", options:["to postpone","postponing","postpone","postponed"], a:1},
+  {level:"B2", q:"\"I wish I ___ harder for the exam,\" she said regretfully.", options:["studied","had studied","have studied","study"], a:1},
+  {level:"B2", q:"Choose the closest meaning: \"He's quite reluctant to change jobs.\"", options:["eager","unwilling","excited","forced"], a:1},
+  {level:"C1", q:"Not only ___ late, but he also forgot the documents.", options:["he was","was he","he did","did he was"], a:1},
+  {level:"C1", q:"The proposal was met with ___ skepticism from the board.", options:["a widespread","widespread","wide spread of","widely spread"], a:1},
+  {level:"C2", q:"Choose the most nuanced fit: \"Her argument, while ___, ultimately failed to persuade the committee.\"", options:["good","cogent","nice","true"], a:1}
+];
+
+let state = {
+  screen:'loading', session:null, profile:null,
+  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[]},
+  diag:{idx:0, correctByLevel:{}, totalByLevel:{}}, selectedPath:null, activeStage:null,
+  convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
+  lastScoreResult:null, targetedPractice:null, authError:null,
+};
+
+/* ============================= AUTH ============================= */
+async function sendMagicLink(email){
+  const { error } = await sb.auth.signInWithOtp({ email, options:{ emailRedirectTo: window.location.href } });
+  return error;
+}
+async function signOut(){ await sb.auth.signOut(); state.session=null; state.profile=null; state.screen='authScreen'; render(); }
+
+/* ============================= BACKEND CALLS ============================= */
+async function authedFetch(path, opts={}){
+  const { data } = await sb.auth.getSession();
+  const token = data.session ? data.session.access_token : null;
+  const headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(token) headers['Authorization'] = 'Bearer '+token;
+  const res = await fetch(path, Object.assign({}, opts, {headers}));
+  const json = await res.json().catch(()=>({}));
+  if(!res.ok){ throw new Error(json.error || ('Request failed: '+res.status)); }
+  return json;
+}
+async function loadProfileFromServer(){
+  const { profile } = await authedFetch('/api/progress');
+  if(profile){
+    state.profile = {name:profile.name, path:profile.path, level:profile.level, currentStage:profile.current_stage};
+    state.progress = {
+      stagesCompleted: profile.stages_completed||[],
+      mistakeTags: profile.mistake_tags||{},
+      scoreHistory: profile.score_history||[],
+    };
+  } else {
+    state.profile = null;
+  }
+}
+async function saveProfileToServer(){
+  await authedFetch('/api/progress', { method:'POST', body: JSON.stringify({
+    name: state.profile.name, path: state.profile.path, level: state.profile.level,
+    current_stage: state.profile.currentStage,
+    stages_completed: state.progress.stagesCompleted,
+    mistake_tags: state.progress.mistakeTags,
+    score_history: state.progress.scoreHistory,
+  })});
+}
+async function callBackend(endpoint, messages, system, maxTokens){
+  const data = await authedFetch(endpoint, { method:'POST', body: JSON.stringify({messages, system}) });
+  if(data.content) return data.content.map(b=>b.type==='text'?b.text:'').join('\n').trim();
+  throw new Error('No content in response');
+}
+function extractJSON(text){
+  let t = text.trim();
+  t = t.replace(/^```json/i,'').replace(/^```/,'').replace(/```$/,'').trim();
+  const start = t.indexOf('{'); const end = t.lastIndexOf('}');
+  if(start>=0 && end>start){ t = t.slice(start, end+1); }
+  return JSON.parse(t);
+}
+
+/* ============================= RENDER ROOT ============================= */
+function render(){
+  const app = document.getElementById('app'); app.innerHTML = '';
+  const map = {
+    loading: renderLoading, authScreen: renderAuthScreen, checkEmail: renderCheckEmail,
+    welcome: renderWelcome, diagnostic: renderDiagnostic, diagResult: renderDiagResult,
+    dashboard: renderDashboard, stageDetail: renderStageDetail, conversation: renderConversation,
+    scoring: renderScoring, scoreResult: renderScoreResult, targetedPractice: renderTargetedPractice,
+  };
+  (map[state.screen] || renderAuthScreen)(app);
+}
+function renderLoading(app){
+  app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading Waypoint…</p></div>`;
+}
+
+/* ============================= AUTH SCREENS ============================= */
+function renderAuthScreen(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover">
+      <div class="stamp-mark">WAY<br>POINT</div>
+      <span class="eyebrow">English for real life</span>
+      <h1>Waypoint</h1>
+      <p>Practice English the way you'll actually use it. Sign in with your email to save your progress.</p>
+    </div>
+    <div class="card">
+      ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
+      <h3>Sign in</h3>
+      <p class="muted" style="margin-top:-4px;">We'll email you a one-time sign-in link — no password needed.</p>
+      <input type="email" id="emailInput" placeholder="you@example.com" style="margin:12px 0;">
+      <button class="btn block" id="sendLinkBtn">Send sign-in link →</button>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#sendLinkBtn').addEventListener('click', async ()=>{
+    const email = div.querySelector('#emailInput').value.trim();
+    if(!email){ state.authError='Please enter an email address.'; render(); return; }
+    div.querySelector('#sendLinkBtn').disabled = true;
+    const error = await sendMagicLink(email);
+    if(error){ state.authError = error.message; render(); return; }
+    state.authError = null; state.lastEmail = email;
+    state.screen='checkEmail'; render();
+  });
+}
+function renderCheckEmail(app){
+  app.innerHTML = `<div class="card center" style="margin-top:60px;">
+    <div style="font-size:36px;">📬</div>
+    <h2>Check your inbox</h2>
+    <p class="muted">We sent a sign-in link to <strong>${state.lastEmail||'your email'}</strong>. Open it on this device to continue.</p>
+    <button class="btn secondary" id="back" style="margin-top:10px;">Use a different email</button>
+  </div>`;
+  app.querySelector('#back').addEventListener('click', ()=>{ state.screen='authScreen'; render(); });
+}
+
+/* ============================= WELCOME (first-time profile setup) ============================= */
+function renderWelcome(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover">
+      <div class="stamp-mark">WAY<br>POINT</div>
+      <span class="eyebrow">English for real life</span>
+      <h1>Welcome!</h1>
+      <p>Let's set up your journey. About 15 minutes a day.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Get started</span>
+      <h3>What's your name?</h3>
+      <input type="text" id="nameInput" placeholder="Type your name" style="margin-bottom:16px;">
+      <h3>Who's learning?</h3>
+      <div class="path-choice">
+        <div class="path-card" data-path="student"><div style="font-size:22px;margin-bottom:6px;">🎒</div><strong>Student</strong>
+          <p class="muted" style="margin:4px 0 0;">Ages 10–17 · school &amp; friend scenarios</p></div>
+        <div class="path-card" data-path="adult"><div style="font-size:22px;margin-bottom:6px;">💼</div><strong>Adult</strong>
+          <p class="muted" style="margin:4px 0 0;">Work, errands &amp; everyday life scenarios</p></div>
+      </div>
+      <button class="btn block" id="startBtn" disabled>Start placement test →</button>
+    </div>
+  `;
+  app.appendChild(div);
+  const cards = div.querySelectorAll('.path-card');
+  cards.forEach(c=>c.addEventListener('click', ()=>{
+    cards.forEach(x=>x.classList.remove('selected')); c.classList.add('selected');
+    state.selectedPath = c.dataset.path; checkReady();
+  }));
+  div.querySelector('#nameInput').addEventListener('input', checkReady);
+  div.querySelector('#startBtn').addEventListener('click', ()=>{
+    const name = div.querySelector('#nameInput').value.trim() || 'Learner';
+    state.profile = {name, path: state.selectedPath, level:null, currentStage:1};
+    state.diag = {idx:0, correctByLevel:{}, totalByLevel:{}};
+    state.screen='diagnostic'; render();
+  });
+  function checkReady(){
+    const name = div.querySelector('#nameInput').value.trim();
+    div.querySelector('#startBtn').disabled = !(name && state.selectedPath);
+  }
+}
+
+/* ============================= DIAGNOSTIC ============================= */
+function renderDiagnostic(app){
+  const i = state.diag.idx; const q = DIAGNOSTIC[i]; const pct = Math.round((i/DIAGNOSTIC.length)*100);
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="top-nav"><span class="eyebrow">Placement test</span><span class="mono muted" style="font-size:12px;">${i+1} / ${DIAGNOSTIC.length}</span></div>
+    <div class="progress-bar"><div style="width:${pct}%;"></div></div>
+    <div class="card">
+      <span class="level-pill">${q.level}</span>
+      <h2 style="margin-top:12px;">${q.q}</h2>
+      <div id="opts" style="margin-top:16px;">${q.options.map((o,idx)=>`<button class="option" data-idx="${idx}">${o}</button>`).join('')}</div>
+      <button class="btn block hidden" id="nextBtn" style="margin-top:8px;">Continue →</button>
+    </div>`;
+  app.appendChild(div);
+  const opts = div.querySelectorAll('.option'); let picked = null;
+  opts.forEach(o=>o.addEventListener('click', ()=>{
+    if(picked!==null) return; picked = parseInt(o.dataset.idx);
+    opts.forEach(x=>x.classList.remove('picked')); o.classList.add('picked');
+    state.diag.totalByLevel[q.level] = (state.diag.totalByLevel[q.level]||0)+1;
+    if(picked === q.a){ state.diag.correctByLevel[q.level] = (state.diag.correctByLevel[q.level]||0)+1; }
+    div.querySelector('#nextBtn').classList.remove('hidden');
+  }));
+  div.querySelector('#nextBtn').addEventListener('click', ()=>{
+    if(state.diag.idx < DIAGNOSTIC.length-1){ state.diag.idx++; render(); } else { finishDiagnostic(); }
+  });
+}
+async function finishDiagnostic(){
+  let level = "A1";
+  for(const band of CEFR){
+    const correct = state.diag.correctByLevel[band]||0; const total = state.diag.totalByLevel[band]||0;
+    if(total>0 && correct/total >= 0.66){ level = band; }
+  }
+  const levelIdx = CEFR.indexOf(level); const startStage = Math.min(15, levelIdx*3 + 1);
+  state.profile.level = level; state.profile.currentStage = startStage;
+  await saveProfileToServer();
+  state.screen = 'diagResult'; render();
+}
+function renderDiagResult(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover center">
+      <span class="eyebrow">Your result</span><h1>Level ${state.profile.level}</h1>
+      <p>Nice work, ${state.profile.name}. You'll start at<br><strong style="color:var(--gold);">Stage ${state.profile.currentStage}: ${STAGES[state.profile.currentStage-1].title}</strong></p>
+    </div>
+    <div class="card"><p class="muted">15 stages, from simple introductions to confident debate. Each stage pairs a speaking scenario with live feedback.</p>
+      <button class="btn block" id="goDash">See my journey →</button></div>`;
+  app.appendChild(div);
+  div.querySelector('#goDash').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+}
+
+/* ============================= DASHBOARD ============================= */
+function renderDashboard(app){
+  const div = document.createElement('div');
+  const completed = state.progress.stagesCompleted; const current = state.profile.currentStage;
+  const stopsHtml = STAGES.map(s=>{
+    let cls = 'locked';
+    if(completed.includes(s.n) || s.n < current) cls='done'; else if(s.n===current) cls='current';
+    const clickable = (s.n <= current) ? 'clickable' : '';
+    return `<div class="stop ${clickable}" data-stage="${s.n}"><div class="track"></div>
+      <div class="node ${cls}">${completed.includes(s.n)?'✓':s.n}</div><div class="stop-label">${s.title}</div></div>`;
+  }).join('');
+  div.innerHTML = `
+    <div class="top-nav">
+      <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
+      <div style="display:flex;align-items:center;gap:10px;"><span class="level-pill">${state.profile.level}</span>
+        <button class="back-link" id="signOutBtn">Sign out</button></div>
+    </div>
+    <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span><div class="journey-scroll">${stopsHtml}</div></div>
+    <div class="card" id="mistakesCard"></div>`;
+  app.appendChild(div);
+  div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
+    state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
+  }));
+  div.querySelector('#signOutBtn').addEventListener('click', signOut);
+  renderMistakeSummary(div.querySelector('#mistakesCard'));
+}
+function renderMistakeSummary(container){
+  const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  if(tags.length===0){
+    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>`; return;
+  }
+  container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Patterns from your recent conversations:</p>
+    ${tags.map(([tag,count])=>`<span class="mistake-chip">${tag.replace(/-/g,' ')} · ${count}×</span>`).join('')}`;
+}
+
+/* ============================= STAGE DETAIL ============================= */
+function renderStageDetail(app){
+  const s = STAGES[state.activeStage-1]; const div = document.createElement('div');
+  const topMistake = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1])[0];
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Journey</button>
+    <div class="card">
+      <span class="eyebrow">Stage ${s.n} · ${s.cefr}</span><h2>${s.icon} ${s.title}</h2><p class="muted">${s.theme}</p>
+      <hr class="divider">
+      <div class="lesson-row"><div class="lesson-info"><div class="lesson-icon">🗣️</div>
+        <div><strong>Speaking scenario</strong><p class="muted" style="margin:2px 0 0;">${s.scenario}</p></div></div></div>
+      <button class="btn block" id="startConvo" style="margin-top:14px;">Start conversation →</button>
+      ${topMistake ? `<hr class="divider"><div class="lesson-row"><div class="lesson-info"><div class="lesson-icon">🎯</div>
+        <div><strong>Targeted practice</strong><p class="muted" style="margin:2px 0 0;">Focus: ${topMistake[0].replace(/-/g,' ')}</p></div></div>
+        <button class="btn secondary" id="targetBtn">Practice</button></div>` : ''}
+    </div>`;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelector('#startConvo').addEventListener('click', ()=>{ beginConversation(s); });
+  const tb = div.querySelector('#targetBtn');
+  if(tb) tb.addEventListener('click', ()=>{ startTargetedPractice(topMistake[0]); });
+}
+
+/* ============================= CONVERSATION ============================= */
+function beginConversation(stage){
+  state.convo = {stage, messages:[], secondsLeft:180, speed:1, recognizing:false, usedVoice:false};
+  state.screen='conversation'; render(); fetchAIReply(true); startTimer();
+}
+function convoSystemPrompt(stage){
+  return `You are role-playing as a character in an English-speaking practice scenario for an ESL learner at CEFR level ${state.profile.level}.
+Scenario: ${stage.scenario}
+Rules:
+- Stay fully in character - never break character or mention you are an AI.
+- Speak in natural English calibrated to a ${state.profile.level} learner: simpler vocabulary/shorter sentences for A1/A2, natural idiomatic complexity for B1+.
+- Keep each reply short: 1-3 sentences.
+- Ask a question or prompt a response almost every turn.
+- Do not correct the learner's grammar mid-conversation.
+- Open the conversation with a natural first line appropriate to the scenario.`;
+}
+function apiMessagesFromConvo(){ return state.convo.messages.map(m=>({role: m.role==='ai'?'assistant':'user', content:m.text})); }
+async function fetchAIReply(isOpening){
+  const stage = state.convo.stage;
+  try{
+    const msgs = isOpening ? [{role:'user', content:'(Begin the scenario now with your opening line.)'}] : apiMessagesFromConvo();
+    const reply = await callBackend('/api/chat', msgs, convoSystemPrompt(stage));
+    state.convo.messages.push({role:'ai', text:reply}); render(); speakText(reply);
+  }catch(e){
+    state.convo.messages.push({role:'system', text:'('+(e.message||'Connection issue')+')'}); render();
+  }
+}
+function speakText(text){
+  try{ if(!window.speechSynthesis) return; window.speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text); u.rate = state.convo.speed; u.lang='en-US'; window.speechSynthesis.speak(u);
+  }catch(e){}
+}
+function startTimer(){
+  clearInterval(state.convo.timerId);
+  state.convo.timerId = setInterval(()=>{
+    state.convo.secondsLeft--;
+    const el = document.getElementById('timerDisplay');
+    if(el){ const m=Math.floor(Math.max(0,state.convo.secondsLeft)/60); const s=Math.max(0,state.convo.secondsLeft)%60;
+      el.textContent = `${m}:${s.toString().padStart(2,'0')}`; }
+    if(state.convo.secondsLeft<=0){ clearInterval(state.convo.timerId); endConversation(); }
+  },1000);
+}
+function renderConversation(app){
+  const s = state.convo.stage; const div = document.createElement('div');
+  const m = Math.floor(Math.max(0,state.convo.secondsLeft)/60); const sec = Math.max(0,state.convo.secondsLeft)%60;
+  div.innerHTML = `
+    <div class="top-nav"><button class="back-link" id="backBtn">← Leave</button>
+      <span class="timer mono" id="timerDisplay">${m}:${sec.toString().padStart(2,'0')}</span></div>
+    <div class="chat-wrap">
+      <div class="chat-head"><div><strong>${s.icon} ${s.title}</strong><div class="muted" style="font-size:12px;">${s.scenario}</div></div></div>
+      <div class="chat-log" id="chatLog">${state.convo.messages.map(m=>`<div class="msg ${m.role}">${escapeHtml(m.text)}</div>`).join('') || '<div class="msg system">Connecting…</div>'}</div>
+      <div class="speed-row"><span>🐢</span><input type="range" min="0.6" max="1.4" step="0.1" value="${state.convo.speed}" id="speedSlider"><span>🐇</span>
+        <span class="mono" id="speedVal">${state.convo.speed.toFixed(1)}x</span></div>
+      <div class="chat-input-row"><button class="mic-btn" id="micBtn" title="Speak">🎤</button>
+        <input type="text" id="chatInput" placeholder="Type your reply…"><button class="btn" id="sendBtn">Send</button></div>
+    </div>
+    <button class="btn block secondary" id="endBtn" style="margin-top:14px;">Finish &amp; get my score →</button>`;
+  app.appendChild(div);
+  const log = div.querySelector('#chatLog'); log.scrollTop = log.scrollHeight;
+  div.querySelector('#backBtn').addEventListener('click', ()=>{
+    clearInterval(state.convo.timerId); window.speechSynthesis && window.speechSynthesis.cancel();
+    state.screen='stageDetail'; render();
+  });
+  div.querySelector('#endBtn').addEventListener('click', endConversation);
+  div.querySelector('#speedSlider').addEventListener('input', (e)=>{
+    state.convo.speed = parseFloat(e.target.value); div.querySelector('#speedVal').textContent = state.convo.speed.toFixed(1)+'x';
+  });
+  div.querySelector('#sendBtn').addEventListener('click', sendUserMessage);
+  div.querySelector('#chatInput').addEventListener('keydown', (e)=>{ if(e.key==='Enter') sendUserMessage(); });
+  div.querySelector('#micBtn').addEventListener('click', toggleMic);
+}
+function sendUserMessage(){
+  const input = document.getElementById('chatInput'); const text = input.value.trim(); if(!text) return;
+  state.convo.messages.push({role:'user', text}); input.value=''; render(); fetchAIReply(false);
+}
+function toggleMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if(!SR){ alert('Voice input is not supported in this browser — please type your reply instead.'); return; }
+  const btn = document.getElementById('micBtn');
+  if(state.convo.recognizing){ state.convo._recognizer && state.convo._recognizer.stop(); return; }
+  const rec = new SR(); rec.lang='en-US'; rec.interimResults=false; rec.maxAlternatives=1;
+  state.convo._recognizer = rec; state.convo.recognizing = true; state.convo.usedVoice = true; btn.classList.add('recording');
+  rec.onresult = (e)=>{ document.getElementById('chatInput').value = e.results[0][0].transcript; };
+  rec.onend = ()=>{ state.convo.recognizing=false; btn.classList.remove('recording'); };
+  rec.onerror = ()=>{ state.convo.recognizing=false; btn.classList.remove('recording'); };
+  rec.start();
+}
+function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
+
+/* ============================= SCORING ============================= */
+async function endConversation(){
+  clearInterval(state.convo.timerId); window.speechSynthesis && window.speechSynthesis.cancel();
+  if(state.convo.messages.filter(m=>m.role==='user').length===0){ state.screen='stageDetail'; render(); return; }
+  state.screen='scoring'; render();
+  const transcript = state.convo.messages.map(m=>`${m.role==='ai'?'Character':'Learner'}: ${m.text}`).join('\n');
+  const sys = `You are an ESL assessment engine. You will receive a transcript of a roleplay conversation between a "Character" (AI) and a "Learner" (ESL student, target level ${state.profile.level}). Assess ONLY the Learner's lines.
+Respond with ONLY valid JSON, no preamble, no markdown fences, matching exactly this shape:
+{"scores": {"vocabulary": <0-100 int>, "grammar": <0-100 int>, "pronunciation": <0-100 int or null>, "comprehension": <0-100 int>, "confidence": <0-100 int>},
+"mistakes": [{"tag": "<short-kebab-case-grammar-or-vocab-tag>", "example": "<short quote from learner>", "correction": "<corrected version>"}],
+"feedback": "<2-3 sentence encouraging but honest feedback>"}
+Scoring guidance: vocabulary=range/appropriateness of word choice; grammar=tense/agreement/preposition/word order correctness; pronunciation=null (no audio access); comprehension=relevance of responses; confidence=based on response length/directness. List 1-5 concrete mistakes with reusable tags like "past-simple-irregular", "preposition-choice", "subject-verb-agreement", "article-usage". Empty array if none found.
+Transcript:
+${transcript}`;
+  try{
+    const raw = await callBackend('/api/score', [{role:'user', content:'Assess this transcript now.'}], sys);
+    const result = extractJSON(raw);
+    state.lastScoreResult = result;
+    state.progress.scoreHistory.push({date: new Date().toISOString(), stage: state.convo.stage.n, scores: result.scores});
+    (result.mistakes||[]).forEach(m=>{ state.progress.mistakeTags[m.tag] = (state.progress.mistakeTags[m.tag]||0)+1; });
+    if(!state.progress.stagesCompleted.includes(state.convo.stage.n)){ state.progress.stagesCompleted.push(state.convo.stage.n); }
+    if(state.convo.stage.n === state.profile.currentStage && state.profile.currentStage < 15){ state.profile.currentStage += 1; }
+    await saveProfileToServer();
+    state.screen='scoreResult'; render();
+  }catch(e){
+    console.error(e); state.lastScoreResult = null; state.scoreError = e.message; state.screen='scoreResult'; render();
+  }
+}
+function renderScoring(app){
+  app.innerHTML = `<div class="center" style="padding-top:100px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Scoring your conversation…</p></div>`;
+}
+function renderScoreResult(app){
+  const div = document.createElement('div'); const r = state.lastScoreResult;
+  if(!r){
+    div.innerHTML = `<div class="card"><h2>Couldn't score that one</h2><p class="muted">${state.scoreError||'Something went wrong reaching the scoring engine.'}</p>
+      <button class="btn block" id="back">Back to journey</button></div>`;
+    app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
+  }
+  const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],['Pronunciation', r.scores.pronunciation],
+    ['Question comprehension', r.scores.comprehension],['Confidence', r.scores.confidence]];
+  div.innerHTML = `
+    <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>Nice work!</h1><p>${r.feedback||''}</p></div>
+    <div class="card"><span class="eyebrow">Your scores</span>
+      ${cats.map(([label,val])=>`<div class="score-bar-row"><div class="score-bar-label"><span>${label}</span><span class="mono">${val===null||val===undefined?'—':val}</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill" style="width:${val||0}%;"></div></div></div>`).join('')}
+    </div>
+    ${(r.mistakes&&r.mistakes.length) ? `<div class="card"><span class="eyebrow">What to work on</span>
+      ${r.mistakes.map(m=>`<div style="margin-bottom:10px;"><span class="mistake-chip">${m.tag.replace(/-/g,' ')}</span>
+        <p class="muted" style="margin:4px 0 0;">"${escapeHtml(m.example)}" → <strong>${escapeHtml(m.correction)}</strong></p></div>`).join('')}
+      <button class="btn teal block" id="practiceBtn" style="margin-top:8px;">Practice this now →</button></div>` : ''}
+    <button class="btn block secondary" id="backDash">Back to journey</button>`;
+  app.appendChild(div);
+  div.querySelector('#backDash').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  const pb = div.querySelector('#practiceBtn');
+  if(pb) pb.addEventListener('click', ()=>{ startTargetedPractice(r.mistakes[0].tag); });
+}
+
+/* ============================= TARGETED PRACTICE ============================= */
+async function startTargetedPractice(tag){
+  state.targetedPractice = {loading:true, tag, questions:null, idx:0, correct:0};
+  state.screen='targetedPractice'; render();
+  const sys = `You are an ESL exercise generator. Create a short adaptive practice set targeting exactly this mistake pattern: "${tag}" for a learner at CEFR level ${state.profile.level}.
+Respond with ONLY valid JSON, no markdown fences: {"questions":[{"prompt":"<question testing this exact pattern>","options":["a","b","c","d"],"answer":"<exact matching option text>","explanation":"<one sentence rule>"}]}
+Create exactly 4 questions, varied wording, all targeting "${tag}".`;
+  try{
+    const raw = await callBackend('/api/practice', [{role:'user', content:'Generate the practice set now.'}], sys);
+    const result = extractJSON(raw);
+    state.targetedPractice = {loading:false, tag, questions:result.questions, idx:0, correct:0}; render();
+  }catch(e){
+    console.error(e); state.targetedPractice = {loading:false, tag, questions:[], idx:0, correct:0, error:e.message}; render();
+  }
+}
+function renderTargetedPractice(app){
+  const tp = state.targetedPractice; const div = document.createElement('div');
+  if(tp.loading){
+    div.innerHTML = `<div class="center" style="padding-top:100px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Building practice for "${tp.tag.replace(/-/g,' ')}"…</p></div>`;
+    app.appendChild(div); return;
+  }
+  if(tp.error || !tp.questions || tp.questions.length===0){
+    div.innerHTML = `<div class="card"><h2>Couldn't build practice</h2><p class="muted">${tp.error||'Try again from the stage page.'}</p><button class="btn block" id="back">Back</button></div>`;
+    app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
+  }
+  if(tp.idx >= tp.questions.length){
+    div.innerHTML = `<div class="cover center"><span class="eyebrow">Practice complete</span><h1>${tp.correct} / ${tp.questions.length}</h1>
+      <p>Targeted practice: ${tp.tag.replace(/-/g,' ')}</p></div><button class="btn block" id="back">Back to journey</button>`;
+    app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
+  }
+  const q = tp.questions[tp.idx];
+  div.innerHTML = `
+    <div class="top-nav"><span class="eyebrow">Targeted practice · ${tp.tag.replace(/-/g,' ')}</span>
+      <span class="mono muted" style="font-size:12px;">${tp.idx+1} / ${tp.questions.length}</span></div>
+    <div class="card"><h2>${escapeHtml(q.prompt)}</h2>
+      <div id="opts" style="margin-top:14px;">${q.options.map((o,idx)=>`<button class="option" data-idx="${idx}">${escapeHtml(o)}</button>`).join('')}</div>
+      <p class="muted hidden" id="explain" style="margin-top:8px;"></p>
+      <button class="btn block hidden" id="nextQ" style="margin-top:8px;">Continue →</button>
+    </div>`;
+  app.appendChild(div);
+  const opts = div.querySelectorAll('.option'); let answered=false;
+  opts.forEach(o=>o.addEventListener('click', ()=>{
+    if(answered) return; answered=true;
+    const chosen = q.options[parseInt(o.dataset.idx)]; const correct = chosen === q.answer;
+    if(correct){ o.style.borderColor='var(--good)'; o.style.background='#E9F5F1'; tp.correct++; }
+    else{ o.style.borderColor='var(--danger)'; o.style.background='#FBEAE7'; }
+    opts.forEach(x=>{ if(x.textContent===q.answer){ x.style.borderColor='var(--good)'; x.style.background='#E9F5F1'; } });
+    const ex = div.querySelector('#explain'); ex.textContent = q.explanation||''; ex.classList.remove('hidden');
+    div.querySelector('#nextQ').classList.remove('hidden');
+  }));
+  div.querySelector('#nextQ').addEventListener('click', ()=>{ tp.idx++; render(); });
+}
+
+/* ============================= INIT ============================= */
+async function boot(){
+  state.screen = 'loading'; render();
+  const { data } = await sb.auth.getSession();
+  state.session = data.session;
+  if(!state.session){ state.screen='authScreen'; render(); return; }
+  try{
+    await loadProfileFromServer();
+    state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
+  }catch(e){
+    console.error(e); state.screen='welcome';
+  }
+  render();
+}
+sb.auth.onAuthStateChange((event, session)=>{
+  state.session = session;
+  if(event === 'SIGNED_IN'){ boot(); }
+  if(event === 'SIGNED_OUT'){ state.screen='authScreen'; render(); }
+});
+boot();
+</script>
+</body>
+</html>
