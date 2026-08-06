@@ -37,6 +37,7 @@
   .divider{border:none;border-top:1.5px dashed var(--line);margin:16px 0;}
   input[type=text], input[type=email], textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
     font-family:'Inter',sans-serif;font-size:15px;background:var(--white);color:var(--ink);}
+  input[data-pw="1"]{padding:16px 16px;font-size:17px;letter-spacing:1px;}
   input:focus, textarea:focus{outline:none;border-color:var(--teal);}
   .hidden{display:none !important;}
   .row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -156,11 +157,24 @@ const DIAGNOSTIC = [
   {level:"C1", q:"The proposal was met with ___ skepticism from the board.", options:["a widespread","widespread","wide spread of","widely spread"], a:1},
   {level:"C2", q:"Choose the most nuanced fit: \"Her argument, while ___, ultimately failed to persuade the committee.\"", options:["good","cogent","nice","true"], a:1}
 ];
+const AVATARS = [
+  {id:'girl-1', emoji:'👧', label:'Girl', cost:0},
+  {id:'boy-1', emoji:'👦', label:'Boy', cost:0},
+  {id:'girl-2', emoji:'👧🏽', label:'Girl', cost:0},
+  {id:'boy-2', emoji:'👦🏽', label:'Boy', cost:0},
+  {id:'girl-3', emoji:'👩', label:'Girl', cost:15},
+  {id:'boy-3', emoji:'👨', label:'Boy', cost:15},
+  {id:'girl-4', emoji:'👱‍♀️', label:'Girl', cost:25},
+  {id:'boy-4', emoji:'👱‍♂️', label:'Boy', cost:25},
+  {id:'girl-5', emoji:'🧕', label:'Girl', cost:35},
+  {id:'boy-5', emoji:'🧔', label:'Boy', cost:35},
+];
 
 let state = {
   screen:'loading', session:null, profile:null,
-  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null},
-  diag:{idx:0, correctByLevel:{}, totalByLevel:{}}, selectedPath:null, activeStage:null,
+  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null,
+    totalPracticeSeconds:0, practiceGoalMinutes:15, gems:0, avatarId:'girl-1', unlockedAvatars:['girl-1','girl-2','boy-1','boy-2']},
+  diag:{idx:0, answers:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
 };
@@ -246,6 +260,11 @@ async function loadProfileFromServer(){
       masteredSkills: profile.mastered_skills||{},
       streakCount: profile.streak_count||0,
       lastActiveDate: profile.last_active_date||null,
+      totalPracticeSeconds: profile.total_practice_seconds||0,
+      practiceGoalMinutes: profile.practice_goal_minutes||15,
+      gems: profile.gems||0,
+      avatarId: profile.avatar_id||'girl-1',
+      unlockedAvatars: profile.unlocked_avatars||['girl-1','girl-2','boy-1','boy-2'],
     };
   } else {
     state.profile = null;
@@ -261,6 +280,11 @@ async function saveProfileToServer(){
     mastered_skills: state.progress.masteredSkills,
     streak_count: state.progress.streakCount,
     last_active_date: state.progress.lastActiveDate,
+    total_practice_seconds: state.progress.totalPracticeSeconds,
+    practice_goal_minutes: state.progress.practiceGoalMinutes,
+    gems: state.progress.gems,
+    avatar_id: state.progress.avatarId,
+    unlocked_avatars: state.progress.unlockedAvatars,
   })});
 }
 function updateStreak(){
@@ -296,6 +320,7 @@ function render(){
     masteryPage: renderMasteryPage, settingsPage: renderSettingsPage,
     progressPage: renderProgressPage, privacyPage: renderPrivacyPage, termsPage: renderTermsPage,
     waitingForConsent: renderWaitingForConsent, consentConfirmPage: renderConsentConfirmPage,
+    rewardsPage: renderRewardsPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
 }
@@ -499,7 +524,7 @@ function renderWelcome(app){
   div.querySelector('#startBtn').addEventListener('click', ()=>{
     const name = div.querySelector('#nameInput').value.trim() || 'Learner';
     state.profile = {name, path: state.selectedPath, level:null, currentStage:1};
-    state.diag = {idx:0, correctByLevel:{}, totalByLevel:{}};
+    state.diag = {idx:0, answers:{}};
     state.screen='diagnostic'; render();
   });
   function checkReady(){
@@ -512,32 +537,41 @@ function renderWelcome(app){
 function renderDiagnostic(app){
   const i = state.diag.idx; const q = DIAGNOSTIC[i]; const pct = Math.round((i/DIAGNOSTIC.length)*100);
   const div = document.createElement('div');
+  const picked = state.diag.answers[i];
   div.innerHTML = `
-    <div class="top-nav"><span class="eyebrow">Placement test</span><span class="mono muted" style="font-size:12px;">${i+1} / ${DIAGNOSTIC.length}</span></div>
+    <div class="top-nav">
+      ${i>0 ? `<button class="back-link" id="backQ">← Back</button>` : '<span></span>'}
+      <span class="eyebrow">Placement test</span><span class="mono muted" style="font-size:12px;">${i+1} / ${DIAGNOSTIC.length}</span>
+    </div>
     <div class="progress-bar"><div style="width:${pct}%;"></div></div>
     <div class="card">
       <span class="level-pill">${q.level}</span>
       <h2 style="margin-top:12px;">${q.q}</h2>
-      <div id="opts" style="margin-top:16px;">${q.options.map((o,idx)=>`<button class="option" data-idx="${idx}">${o}</button>`).join('')}</div>
-      <button class="btn block hidden" id="nextBtn" style="margin-top:8px;">Continue →</button>
+      <div id="opts" style="margin-top:16px;">${q.options.map((o,idx)=>`<button class="option ${picked===idx?'picked':''}" data-idx="${idx}">${o}</button>`).join('')}</div>
+      <button class="btn block ${picked===undefined?'hidden':''}" id="nextBtn" style="margin-top:8px;">Continue →</button>
     </div>`;
   app.appendChild(div);
-  const opts = div.querySelectorAll('.option'); let picked = null;
+  const opts = div.querySelectorAll('.option');
   opts.forEach(o=>o.addEventListener('click', ()=>{
-    if(picked!==null) return; picked = parseInt(o.dataset.idx);
-    opts.forEach(x=>x.classList.remove('picked')); o.classList.add('picked');
-    state.diag.totalByLevel[q.level] = (state.diag.totalByLevel[q.level]||0)+1;
-    if(picked === q.a){ state.diag.correctByLevel[q.level] = (state.diag.correctByLevel[q.level]||0)+1; }
-    div.querySelector('#nextBtn').classList.remove('hidden');
+    state.diag.answers[i] = parseInt(o.dataset.idx);
+    render();
   }));
-  div.querySelector('#nextBtn').addEventListener('click', ()=>{
+  const backBtn = div.querySelector('#backQ');
+  if(backBtn) backBtn.addEventListener('click', ()=>{ state.diag.idx--; render(); });
+  const nextBtn = div.querySelector('#nextBtn');
+  if(nextBtn) nextBtn.addEventListener('click', ()=>{
     if(state.diag.idx < DIAGNOSTIC.length-1){ state.diag.idx++; render(); } else { finishDiagnostic(); }
   });
 }
 async function finishDiagnostic(){
+  const correctByLevel = {}; const totalByLevel = {};
+  DIAGNOSTIC.forEach((q,i)=>{
+    totalByLevel[q.level] = (totalByLevel[q.level]||0)+1;
+    if(state.diag.answers[i] === q.a){ correctByLevel[q.level] = (correctByLevel[q.level]||0)+1; }
+  });
   let level = "A1";
   for(const band of CEFR){
-    const correct = state.diag.correctByLevel[band]||0; const total = state.diag.totalByLevel[band]||0;
+    const correct = correctByLevel[band]||0; const total = totalByLevel[band]||0;
     if(total>0 && correct/total >= 0.66){ level = band; }
   }
   const levelIdx = CEFR.indexOf(level); const startStage = Math.min(15, levelIdx*3 + 1);
@@ -571,10 +605,14 @@ function renderDashboard(app){
   }).join('');
   div.innerHTML = `
     <div class="top-nav">
-      <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:32px;">${(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0]).emoji}</span>
+        <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
+      </div>
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
         <span class="level-pill">${state.profile.level}</span>
+        <button class="back-link" id="rewardsBtn">💎 ${state.progress.gems||0}</button>
         <button class="back-link" id="settingsBtn">Settings</button>
         <button class="back-link" id="signOutBtn">Sign out</button></div>
     </div>
@@ -584,6 +622,7 @@ function renderDashboard(app){
   div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
     state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
   }));
+  div.querySelector('#rewardsBtn').addEventListener('click', ()=>{ state.screen='rewardsPage'; render(); });
   div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
   div.querySelector('#signOutBtn').addEventListener('click', signOut);
   renderMistakeSummary(div.querySelector('#mistakesCard'));
@@ -684,7 +723,7 @@ function renderSettingsPage(app){
     setTimeout(()=>{ div.querySelector('#saveNameBtn').textContent = 'Save name'; }, 1500);
   });
   div.querySelector('#retakeBtn').addEventListener('click', ()=>{
-    state.diag = {idx:0, correctByLevel:{}, totalByLevel:{}};
+    state.diag = {idx:0, answers:{}};
     state.screen='diagnostic'; render();
   });
   div.querySelector('#progressBtn').addEventListener('click', ()=>{ state.screen='progressPage'; render(); });
@@ -717,7 +756,7 @@ function renderStageDetail(app){
 let activeTimerId = null;
 function beginConversation(stage){
   if(activeTimerId){ clearInterval(activeTimerId); activeTimerId = null; }
-  state.convo = {stage, messages:[], secondsLeft:180, speed:1, recognizing:false, usedVoice:false, ended:false};
+  state.convo = {stage, messages:[], secondsLeft:180, speed:1, recognizing:false, usedVoice:false, ended:false, startedAt:Date.now()};
   state.screen='conversation'; render(); fetchAIReply(true); startTimer();
 }
 function convoSystemPrompt(stage){
@@ -834,6 +873,9 @@ ${transcript}`;
     });
     if(!state.progress.stagesCompleted.includes(state.convo.stage.n)){ state.progress.stagesCompleted.push(state.convo.stage.n); }
     if(state.convo.stage.n === state.profile.currentStage && state.profile.currentStage < 15){ state.profile.currentStage += 1; }
+    const elapsed = Math.min(200, Math.round((Date.now() - (state.convo.startedAt||Date.now()))/1000));
+    state.progress.totalPracticeSeconds = (state.progress.totalPracticeSeconds||0) + elapsed;
+    state.progress.gems = (state.progress.gems||0) + 5;
     updateStreak();
     await saveProfileToServer();
     state.screen='scoreResult'; render();
@@ -912,6 +954,7 @@ function renderTargetedPractice(app){
       if(passed){
         delete state.progress.mistakeTags[tp.tag];
         state.progress.masteredSkills[tp.tag] = { date: new Date().toISOString(), score: `${tp.correct}/${tp.questions.length}` };
+        state.progress.gems = (state.progress.gems||0) + 10;
       }
       updateStreak();
       saveProfileToServer();
@@ -923,23 +966,27 @@ function renderTargetedPractice(app){
   }
   const q = tp.questions[tp.idx];
   if(q.level===2 && !tp.shownLevelUp){
-    div.innerHTML = `<div class="cover center">
+    div.innerHTML = `<button class="back-link" id="journeyBtn">← Journey</button>
+    <div class="cover center">
       <span class="eyebrow">Level up</span><h1>🎯 Level 2 unlocked</h1>
       <p>Nice work on the basics. These next four get harder — longer sentences, closer reading.</p>
     </div><button class="btn block" id="continueBtn">Continue →</button>`;
     app.appendChild(div);
+    div.querySelector('#journeyBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
     div.querySelector('#continueBtn').addEventListener('click', ()=>{ tp.shownLevelUp = true; render(); });
     return;
   }
   div.innerHTML = `
-    <div class="top-nav"><span class="eyebrow">Targeted practice · ${tp.tag.replace(/-/g,' ')} · Level ${q.level||1}</span>
+    <div class="top-nav"><button class="back-link" id="journeyBtn">← Journey</button>
       <span class="mono muted" style="font-size:12px;">${tp.idx+1} / ${tp.questions.length}</span></div>
+    <p class="muted" style="margin-top:-10px;margin-bottom:10px;">Targeted practice · ${tp.tag.replace(/-/g,' ')} · Level ${q.level||1}</p>
     <div class="card"><h2>${escapeHtml(q.prompt)}</h2>
       <div id="opts" style="margin-top:14px;">${q.options.map((o,idx)=>`<button class="option" data-idx="${idx}">${escapeHtml(o)}</button>`).join('')}</div>
       <p class="muted hidden" id="explain" style="margin-top:8px;"></p>
       <button class="btn block hidden" id="nextQ" style="margin-top:8px;">Continue →</button>
     </div>`;
   app.appendChild(div);
+  div.querySelector('#journeyBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
   const opts = div.querySelectorAll('.option'); let answered=false;
   opts.forEach(o=>o.addEventListener('click', ()=>{
     if(answered) return; answered=true;
@@ -1072,6 +1119,76 @@ function renderConsentConfirmPage(app){
     }catch(e){
       div.querySelector('#consentResult').innerHTML = `<p class="muted">Something went wrong. Please try again.</p>`;
     }
+  });
+}
+
+/* ============================= REWARDS ============================= */
+function formatDuration(totalSeconds){
+  const h = Math.floor(totalSeconds/3600);
+  const m = Math.floor((totalSeconds%3600)/60);
+  if(h>0) return `${h}h ${m}m`;
+  return `${m}m`;
+}
+function renderRewardsPage(app){
+  const div = document.createElement('div');
+  const currentAvatar = AVATARS.find(a=>a.id===state.progress.avatarId) || AVATARS[0];
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Journey</button>
+    <div class="cover center">
+      <span class="eyebrow">Your rewards</span>
+      <div style="font-size:56px;margin:8px 0;">${currentAvatar.emoji}</div>
+      <h1>💎 ${state.progress.gems||0} gems</h1>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Practice time</span>
+      <p style="font-size:22px;font-family:'Fraunces',serif;margin:6px 0 14px;">${formatDuration(state.progress.totalPracticeSeconds||0)} total</p>
+      <span class="eyebrow">Daily goal</span>
+      <div class="row" style="align-items:center;margin-top:8px;">
+        <input type="text" id="goalInput" value="${state.progress.practiceGoalMinutes||15}" style="max-width:100px;">
+        <span class="muted">minutes / day</span>
+        <button class="btn secondary" id="saveGoalBtn">Save</button>
+      </div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Choose your avatar</span>
+      <p class="muted" style="margin-bottom:12px;">Earn gems by finishing conversations (+5) and mastering skills (+10).</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;">
+        ${AVATARS.map(a=>{
+          const unlocked = (state.progress.unlockedAvatars||[]).includes(a.id);
+          const selected = state.progress.avatarId === a.id;
+          return `<button class="path-card ${selected?'selected':''}" data-avatar="${a.id}" data-cost="${a.cost}" style="text-align:center;padding:12px 6px;">
+            <div style="font-size:32px;">${a.emoji}</div>
+            <div class="muted" style="font-size:11px;margin-top:4px;">${unlocked ? (selected?'Selected':'Tap to use') : `💎 ${a.cost}`}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelector('#saveGoalBtn').addEventListener('click', async ()=>{
+    const val = parseInt(div.querySelector('#goalInput').value, 10);
+    if(!val || val<1 || val>240) return;
+    state.progress.practiceGoalMinutes = val;
+    div.querySelector('#saveGoalBtn').disabled = true;
+    await saveProfileToServer();
+    div.querySelector('#saveGoalBtn').disabled = false;
+    div.querySelector('#saveGoalBtn').textContent = 'Saved ✓';
+    setTimeout(()=>{ div.querySelector('#saveGoalBtn').textContent = 'Save'; }, 1500);
+  });
+  div.querySelectorAll('[data-avatar]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.avatar; const cost = parseInt(btn.dataset.cost, 10);
+      const unlocked = (state.progress.unlockedAvatars||[]).includes(id);
+      if(!unlocked){
+        if((state.progress.gems||0) < cost){ return; }
+        state.progress.gems -= cost;
+        state.progress.unlockedAvatars = [...(state.progress.unlockedAvatars||[]), id];
+      }
+      state.progress.avatarId = id;
+      await saveProfileToServer();
+      render();
+    });
   });
 }
 
