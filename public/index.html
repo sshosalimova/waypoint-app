@@ -166,7 +166,7 @@ let state = {
 };
 
 /* ============================= AUTH ============================= */
-async function signUpUser(username, email, password, age, guardianEmail, guardianConsent){
+async function signUpUser(username, email, password, age, guardianEmail){
   const clean = username.trim().toLowerCase();
   const { data, error } = await sb.auth.signUp({
     email, password,
@@ -176,11 +176,19 @@ async function signUpUser(username, email, password, age, guardianEmail, guardia
   try{
     const r = await fetch('/api/register-username', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ username: clean, email, userId: data.user ? data.user.id : null, age, guardianEmail, guardianConsent })
+      body: JSON.stringify({ username: clean, email, userId: data.user ? data.user.id : null, age, guardianEmail })
     });
     const json = await r.json();
     if(!r.ok) return json.error || 'Could not reserve that username.';
   }catch(e){ return 'Could not reserve that username.'; }
+  if(age < 13 && guardianEmail && data.user){
+    try{
+      await fetch('/api/request-guardian-consent', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ userId: data.user.id, guardianEmail, username: clean })
+      });
+    }catch(e){}
+  }
   return null;
 }
 async function loginUser(username, password){
@@ -229,7 +237,8 @@ async function authedFetch(path, opts={}){
 async function loadProfileFromServer(){
   const { profile } = await authedFetch('/api/progress');
   if(profile){
-    state.profile = {name:profile.name, path:profile.path, level:profile.level, currentStage:profile.current_stage};
+    state.profile = {name:profile.name, path:profile.path, level:profile.level, currentStage:profile.current_stage,
+      age:profile.age, guardianEmail:profile.guardian_email, guardianConsentAt:profile.guardian_consent_at};
     state.progress = {
       stagesCompleted: profile.stages_completed||[],
       mistakeTags: profile.mistake_tags||{},
@@ -284,7 +293,9 @@ function render(){
     welcome: renderWelcome, diagnostic: renderDiagnostic, diagResult: renderDiagResult,
     dashboard: renderDashboard, stageDetail: renderStageDetail, conversation: renderConversation,
     scoring: renderScoring, scoreResult: renderScoreResult, targetedPractice: renderTargetedPractice,
-    masteryPage: renderMasteryPage,
+    masteryPage: renderMasteryPage, settingsPage: renderSettingsPage,
+    progressPage: renderProgressPage, privacyPage: renderPrivacyPage, termsPage: renderTermsPage,
+    waitingForConsent: renderWaitingForConsent, consentConfirmPage: renderConsentConfirmPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
 }
@@ -313,6 +324,11 @@ function renderLoginScreen(app){
         <button class="back-link" id="signUpLink">Need an account? Sign up</button>
       </div>
     </div>
+    <div class="center" style="margin-top:16px;">
+      <button class="back-link" id="privacyLink" style="display:inline;">Privacy Policy</button>
+      <span class="muted"> · </span>
+      <button class="back-link" id="termsLink" style="display:inline;">Terms of Service</button>
+    </div>
   `;
   app.appendChild(div);
   const passEl = div.querySelector('#passInput'); passEl.type='password';
@@ -327,6 +343,8 @@ function renderLoginScreen(app){
   });
   div.querySelector('#forgotLink').addEventListener('click', ()=>{ state.authError=null; state.screen='forgotPassword'; render(); });
   div.querySelector('#signUpLink').addEventListener('click', ()=>{ state.authError=null; state.screen='signUpScreen'; render(); });
+  div.querySelector('#privacyLink').addEventListener('click', ()=>{ state.screenBeforeLegal='loginScreen'; state.screen='privacyPage'; render(); });
+  div.querySelector('#termsLink').addEventListener('click', ()=>{ state.screenBeforeLegal='loginScreen'; state.screen='termsPage'; render(); });
 }
 function renderSignUpScreen(app){
   const div = document.createElement('div');
@@ -345,12 +363,8 @@ function renderSignUpScreen(app){
       <input type="text" id="passInput2" placeholder="Confirm password" style="margin-bottom:10px;" data-pw="1">
       <input type="text" id="ageInput" placeholder="Your age" style="margin-bottom:10px;">
       <div id="guardianFields" class="hidden">
-        <p class="muted" style="margin-bottom:8px;">Since you're under 13, we need a parent or guardian's OK before creating your account.</p>
+        <p class="muted" style="margin-bottom:8px;">Since you're under 13, we'll email a parent or guardian for approval before your account is active.</p>
         <input type="email" id="guardianEmailInput" placeholder="Parent/guardian email" style="margin-bottom:10px;">
-        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13.5px;color:var(--muted);margin-bottom:10px;">
-          <input type="checkbox" id="guardianConsentCheck" style="margin-top:3px;">
-          <span>I am this student's parent or guardian, and I consent to their use of Waypoint, including saving their name, email, and practice progress.</span>
-        </label>
       </div>
       <button class="btn block" id="signUpBtn">Create account →</button>
       <div style="margin-top:14px;">
@@ -374,16 +388,15 @@ function renderSignUpScreen(app){
     const pw2 = div.querySelector('#passInput2').value;
     const age = parseInt(ageInput.value, 10);
     const guardianEmail = div.querySelector('#guardianEmailInput').value.trim();
-    const guardianConsent = div.querySelector('#guardianConsentCheck').checked;
     if(!username || !email || !pw1 || !age){ state.authError='Please fill in every field, including your age.'; render(); return; }
     if(pw1 !== pw2){ state.authError='Passwords do not match.'; render(); return; }
     if(pw1.length < 8){ state.authError='Password must be at least 8 characters.'; render(); return; }
     if(age < 4 || age > 120){ state.authError='Please enter a valid age.'; render(); return; }
-    if(age < 13 && (!guardianEmail || !guardianConsent)){ state.authError="Since you're under 13, a parent/guardian email and checked consent box are required."; render(); return; }
+    if(age < 13 && !guardianEmail){ state.authError="Since you're under 13, a parent/guardian email is required."; render(); return; }
     div.querySelector('#signUpBtn').disabled = true;
-    const error = await signUpUser(username, email, pw1, age, guardianEmail, guardianConsent);
+    const error = await signUpUser(username, email, pw1, age, guardianEmail);
     if(error){ state.authError = error; render(); return; }
-    state.authError = null; state.lastEmail = email;
+    state.authError = null; state.lastEmail = email; state.lastSignupAge = age;
     state.checkEmailMode = 'signup';
     state.screen='checkEmail'; render();
   });
@@ -445,7 +458,7 @@ function renderCheckEmail(app){
     <div style="font-size:36px;">📬</div>
     <h2>Check your inbox</h2>
     <p class="muted">${isSignup
-      ? `We sent a confirmation link to <strong>${state.lastEmail||'your email'}</strong>. Click it to activate your account, then come back and log in.`
+      ? `We sent a confirmation link to <strong>${state.lastEmail||'your email'}</strong>. Click it to activate your account, then come back and log in.${state.lastSignupAge && state.lastSignupAge<13 ? ' Since you\'re under 13, your parent or guardian also needs to approve your account by email before you can start practicing.' : ''}`
       : `We sent a password reset link to your email. Open it on this device to choose a new password.`}</p>
     <button class="btn secondary" id="back" style="margin-top:10px;">Back to log in</button>
   </div>`;
@@ -562,6 +575,7 @@ function renderDashboard(app){
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
         <span class="level-pill">${state.profile.level}</span>
+        <button class="back-link" id="settingsBtn">Settings</button>
         <button class="back-link" id="signOutBtn">Sign out</button></div>
     </div>
     <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span><div class="journey-scroll">${stopsHtml}</div></div>
@@ -570,6 +584,7 @@ function renderDashboard(app){
   div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
     state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
   }));
+  div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
   div.querySelector('#signOutBtn').addEventListener('click', signOut);
   renderMistakeSummary(div.querySelector('#mistakesCard'));
 }
@@ -628,6 +643,54 @@ function renderMasteryPage(app){
 }
 
 /* ============================= STAGE DETAIL ============================= */
+function renderSettingsPage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Journey</button>
+    <div class="cover"><span class="eyebrow">Settings</span><h1>Your account</h1></div>
+    <div class="card">
+      <span class="eyebrow">Display name</span>
+      <input type="text" id="nameInput" value="${state.profile.name}" style="margin:10px 0 10px;">
+      <button class="btn secondary" id="saveNameBtn">Save name</button>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Placement level</span>
+      <p class="muted" style="margin-bottom:10px;">Currently placed at <strong>${state.profile.level}</strong>. Retaking the test will update your level and starting stage, but keeps your completed stages, mistakes, and mastered skills.</p>
+      <button class="btn secondary" id="retakeBtn">Retake placement test</button>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Progress</span>
+      <p class="muted" style="margin-bottom:10px;">See how your scores have changed over time.</p>
+      <button class="btn secondary" id="progressBtn">View progress chart</button>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Legal</span>
+      <div class="row">
+        <button class="back-link" id="privacyLink">Privacy Policy</button>
+        <button class="back-link" id="termsLink">Terms of Service</button>
+      </div>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelector('#saveNameBtn').addEventListener('click', async ()=>{
+    const newName = div.querySelector('#nameInput').value.trim();
+    if(!newName) return;
+    state.profile.name = newName;
+    div.querySelector('#saveNameBtn').disabled = true;
+    await saveProfileToServer();
+    div.querySelector('#saveNameBtn').disabled = false;
+    div.querySelector('#saveNameBtn').textContent = 'Saved ✓';
+    setTimeout(()=>{ div.querySelector('#saveNameBtn').textContent = 'Save name'; }, 1500);
+  });
+  div.querySelector('#retakeBtn').addEventListener('click', ()=>{
+    state.diag = {idx:0, correctByLevel:{}, totalByLevel:{}};
+    state.screen='diagnostic'; render();
+  });
+  div.querySelector('#progressBtn').addEventListener('click', ()=>{ state.screen='progressPage'; render(); });
+  div.querySelector('#privacyLink').addEventListener('click', ()=>{ state.screenBeforeLegal='settingsPage'; state.screen='privacyPage'; render(); });
+  div.querySelector('#termsLink').addEventListener('click', ()=>{ state.screenBeforeLegal='settingsPage'; state.screen='termsPage'; render(); });
+}
 function renderStageDetail(app){
   const s = STAGES[state.activeStage-1]; const div = document.createElement('div');
   const topMistake = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1])[0];
@@ -890,15 +953,149 @@ function renderTargetedPractice(app){
   div.querySelector('#nextQ').addEventListener('click', ()=>{ tp.idx++; render(); });
 }
 
+/* ============================= PROGRESS CHART ============================= */
+function renderProgressPage(app){
+  const div = document.createElement('div');
+  const history = state.progress.scoreHistory||[];
+  let barsHtml = '<p class="muted">Complete a few conversations and your score history will show up here.</p>';
+  if(history.length > 0){
+    const points = history.map(h=>{
+      const nums = [h.scores.vocabulary, h.scores.grammar, h.scores.comprehension, h.scores.confidence].filter(v=>typeof v==='number');
+      const avg = nums.length ? Math.round(nums.reduce((a,b)=>a+b,0)/nums.length) : 0;
+      return { avg, date: h.date, stage: h.stage };
+    });
+    barsHtml = points.map(p=>`
+      <div class="score-bar-row">
+        <div class="score-bar-label"><span>${new Date(p.date).toLocaleDateString()} · Stage ${p.stage}</span><span class="mono">${p.avg}</span></div>
+        <div class="score-bar-track"><div class="score-bar-fill" style="width:${p.avg}%;"></div></div>
+      </div>
+    `).join('');
+  }
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Settings</button>
+    <div class="cover"><span class="eyebrow">Your progress</span><h1>Score history</h1>
+      <p>${history.length} conversation${history.length===1?'':'s'} scored so far.</p></div>
+    <div class="card"><span class="eyebrow">Average score per conversation</span>${barsHtml}</div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
+}
+
+/* ============================= LEGAL PAGES ============================= */
+function renderPrivacyPage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Back</button>
+    <div class="cover"><span class="eyebrow">Legal</span><h1>Privacy Policy</h1><p>Last updated: 2026</p></div>
+    <div class="card">
+      <p><strong>What we collect:</strong> your name, email, age, and (for users under 13) a parent/guardian's email. We also store your English level, practice conversations, AI-generated scores and feedback, and progress such as streaks and mastered skills.</p>
+      <p><strong>How we use it:</strong> to run your account, personalize lessons, and improve the app. Conversation transcripts are sent to Anthropic (our AI provider) to generate replies and feedback.</p>
+      <p><strong>Who we share it with:</strong> Supabase (our database and login provider), Anthropic (our AI provider), and Resend (our email provider). We do not sell your data.</p>
+      <p><strong>Children's privacy:</strong> for users under 13, we email a parent or guardian a link they must click to approve the account before it becomes active, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
+      <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
+      <p><strong>Contact:</strong> [add your contact email here]</p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen = state.screenBeforeLegal || 'loginScreen'; render(); });
+}
+function renderTermsPage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Back</button>
+    <div class="cover"><span class="eyebrow">Legal</span><h1>Terms of Service</h1><p>Last updated: 2026</p></div>
+    <div class="card">
+      <p><strong>Using Waypoint:</strong> Waypoint is an English-practice app. You agree to use it honestly, not to abuse or overload the AI conversation or scoring features, and not to attempt to access other users' accounts or data.</p>
+      <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's emailed approval before the account is active.</p>
+      <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. Waypoint is a practice tool, not a substitute for a certified language course or exam.</p>
+      <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
+      <p><strong>Contact:</strong> [add your contact email here]</p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen = state.screenBeforeLegal || 'loginScreen'; render(); });
+}
+
+/* ============================= GUARDIAN CONSENT ============================= */
+function renderWaitingForConsent(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover"><span class="eyebrow">Almost there</span><h1>Waiting for approval</h1>
+      <p>We emailed ${state.profile.guardianEmail || 'your parent or guardian'} to approve your account. Once they click the link in that email, you'll be able to start practicing.</p></div>
+    <div class="card">
+      <button class="btn secondary" id="resendBtn">Resend approval email</button>
+      <p class="muted hidden" id="resendMsg" style="margin-top:10px;"></p>
+    </div>
+    <button class="btn block secondary" id="signOutBtn" style="margin-top:10px;">Sign out</button>
+  `;
+  app.appendChild(div);
+  div.querySelector('#resendBtn').addEventListener('click', async ()=>{
+    div.querySelector('#resendBtn').disabled = true;
+    try{
+      await authedFetch('/api/request-guardian-consent', { method:'POST', body: JSON.stringify({
+        userId: state.session.user.id, guardianEmail: state.profile.guardianEmail, username: state.profile.name
+      })});
+      const msg = div.querySelector('#resendMsg'); msg.textContent = 'Sent!'; msg.classList.remove('hidden');
+    }catch(e){
+      const msg = div.querySelector('#resendMsg'); msg.textContent = 'Could not resend — try again shortly.'; msg.classList.remove('hidden');
+    }
+    div.querySelector('#resendBtn').disabled = false;
+  });
+  div.querySelector('#signOutBtn').addEventListener('click', signOut);
+}
+function renderConsentConfirmPage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover"><span class="eyebrow">Parental consent</span><h1>Confirm approval</h1>
+      <p>Click below to approve your child's Waypoint account.</p></div>
+    <div class="card" id="consentResult">
+      <button class="btn block" id="approveBtn">Approve account →</button>
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#approveBtn').addEventListener('click', async ()=>{
+    div.querySelector('#approveBtn').disabled = true;
+    try{
+      const r = await fetch('/api/confirm-guardian-consent', {
+        method:'POST', headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({ token: state.consentToken })
+      });
+      const json = await r.json();
+      const resultDiv = div.querySelector('#consentResult');
+      if(!r.ok){
+        resultDiv.innerHTML = `<p class="muted">${json.error || 'This link is invalid or has already been used.'}</p>`;
+      } else {
+        resultDiv.innerHTML = `<p>✅ Thank you! ${json.name||"Your child's"} account is now approved and ready to use.</p>`;
+      }
+    }catch(e){
+      div.querySelector('#consentResult').innerHTML = `<p class="muted">Something went wrong. Please try again.</p>`;
+    }
+  });
+}
+
 /* ============================= INIT ============================= */
 async function boot(){
   state.screen = 'loading'; render();
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get('consent_token');
+  if(token){
+    state.consentToken = token;
+    state.screen = 'consentConfirmPage';
+    render();
+    return;
+  }
   const { data } = await sb.auth.getSession();
   state.session = data.session;
   if(!state.session){ state.screen='loginScreen'; render(); return; }
   try{
     await loadProfileFromServer();
-    state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
+    if(state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt){
+      state.screen = 'waitingForConsent';
+    } else {
+      state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
+    }
   }catch(e){
     console.error(e); state.screen='welcome';
   }
