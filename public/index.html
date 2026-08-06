@@ -157,17 +157,13 @@ const DIAGNOSTIC = [
   {level:"C1", q:"The proposal was met with ___ skepticism from the board.", options:["a widespread","widespread","wide spread of","widely spread"], a:1},
   {level:"C2", q:"Choose the most nuanced fit: \"Her argument, while ___, ultimately failed to persuade the committee.\"", options:["good","cogent","nice","true"], a:1}
 ];
-const AVATARS = [
-  {id:'girl-1', emoji:'👧', label:'Girl', cost:0},
-  {id:'boy-1', emoji:'👦', label:'Boy', cost:0},
-  {id:'girl-2', emoji:'👧🏽', label:'Girl', cost:0},
-  {id:'boy-2', emoji:'👦🏽', label:'Boy', cost:0},
-  {id:'girl-3', emoji:'👩', label:'Girl', cost:15},
-  {id:'boy-3', emoji:'👨', label:'Boy', cost:15},
-  {id:'girl-4', emoji:'👱‍♀️', label:'Girl', cost:25},
-  {id:'boy-4', emoji:'👱‍♂️', label:'Boy', cost:25},
-  {id:'girl-5', emoji:'🧕', label:'Girl', cost:35},
-  {id:'boy-5', emoji:'🧔', label:'Boy', cost:35},
+const CEFR_INFO = {
+  A1: "Beginner. You can understand and use basic phrases, introduce yourself, and ask simple questions about familiar topics.",
+  A2: "Elementary. You can communicate in simple, routine situations — shopping, describing your background, and talking about immediate needs.",
+  B1: "Intermediate. You can handle most everyday situations, describe experiences and plans, and give reasons for your opinions.",
+  B2: "Upper Intermediate. You can interact fluently with native speakers, understand complex text, and discuss a wide range of subjects.",
+  C1: "Advanced. You can express yourself fluently and spontaneously, understand demanding texts, and use language flexibly for social, academic, and professional purposes.",
+  C2: "Mastery. You can understand virtually everything you hear or read, summarize complex information, and express yourself precisely even in nuanced situations.",
 ];
 
 let state = {
@@ -320,7 +316,7 @@ function render(){
     masteryPage: renderMasteryPage, settingsPage: renderSettingsPage,
     progressPage: renderProgressPage, privacyPage: renderPrivacyPage, termsPage: renderTermsPage,
     waitingForConsent: renderWaitingForConsent, consentConfirmPage: renderConsentConfirmPage,
-    rewardsPage: renderRewardsPage,
+    rewardsPage: renderRewardsPage, levelsInfoPage: renderLevelsInfoPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
 }
@@ -586,6 +582,7 @@ function renderDiagResult(app){
       <span class="eyebrow">Your result</span><h1>Level ${state.profile.level}</h1>
       <p>Nice work, ${state.profile.name}. You'll start at<br><strong style="color:var(--gold);">Stage ${state.profile.currentStage}: ${STAGES[state.profile.currentStage-1].title}</strong></p>
     </div>
+    <div class="card"><p class="muted">${CEFR_INFO[state.profile.level]||''}</p></div>
     <div class="card"><p class="muted">15 stages, from simple introductions to confident debate. Each stage pairs a speaking scenario with live feedback.</p>
       <button class="btn block" id="goDash">See my journey →</button></div>`;
   app.appendChild(div);
@@ -611,7 +608,7 @@ function renderDashboard(app){
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
-        <span class="level-pill">${state.profile.level}</span>
+        <span class="level-pill" id="levelPillBtn" style="cursor:pointer;">${state.profile.level} ⓘ</span>
         <button class="back-link" id="rewardsBtn">💎 ${state.progress.gems||0}</button>
         <button class="back-link" id="settingsBtn">Settings</button>
         <button class="back-link" id="signOutBtn">Sign out</button></div>
@@ -623,6 +620,7 @@ function renderDashboard(app){
     state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
   }));
   div.querySelector('#rewardsBtn').addEventListener('click', ()=>{ state.screen='rewardsPage'; render(); });
+  div.querySelector('#levelPillBtn').addEventListener('click', ()=>{ state.screen='levelsInfoPage'; render(); });
   div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
   div.querySelector('#signOutBtn').addEventListener('click', signOut);
   renderMistakeSummary(div.querySelector('#mistakesCard'));
@@ -1040,8 +1038,8 @@ function renderPrivacyPage(app){
       <p><strong>Who we share it with:</strong> Supabase (our database and login provider), Anthropic (our AI provider), and Resend (our email provider). We do not sell your data.</p>
       <p><strong>Children's privacy:</strong> for users under 13, we require a parent or guardian's email and consent before creating an account, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
       <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
-      <p><strong>Contact:</strong> [add your contact email here]</p>
-      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
+      <p><strong>Contact:</strong> [sshosalimova!gmail.com]</p>
+      <p class="muted">This is not legal advice — please reread terms of service if uncertain.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1057,8 +1055,8 @@ function renderTermsPage(app){
       <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's consent to create an account.</p>
       <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUp ESL is a practice tool, not a substitute for a certified language course or exam.</p>
       <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
-      <p><strong>Contact:</strong> [add your contact email here]</p>
-      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
+      <p><strong>Contact:</strong> [sshosalimova@gmail.com]</p>
+      <p class="muted">This is not legal advice — please reread terms of service if uncertain.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1190,6 +1188,29 @@ function renderRewardsPage(app){
       render();
     });
   });
+}
+
+/* ============================= LEVELS INFO ============================= */
+function renderLevelsInfoPage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Journey</button>
+    <div class="cover"><span class="eyebrow">English levels explained</span><h1>What CEFR levels mean</h1>
+      <p>You're currently at <strong>${state.profile.level}</strong>.</p></div>
+    <div class="card">
+      ${CEFR.map(level=>`
+        <div class="lesson-row">
+          <div class="lesson-info">
+            <div class="lesson-icon">${level===state.profile.level?'⭐':level}</div>
+            <div><strong>${level}${level===state.profile.level?' (you are here)':''}</strong>
+              <p class="muted" style="margin:2px 0 0;">${CEFR_INFO[level]}</p></div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
 }
 
 /* ============================= INIT ============================= */
