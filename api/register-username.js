@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { username, email } = req.body || {};
+  const { username, email, userId, age, guardianEmail, guardianConsent } = req.body || {};
   if (!username || !email) {
     res.status(400).json({ error: 'Missing username or email' });
     return;
@@ -18,6 +18,16 @@ module.exports = async (req, res) => {
     return;
   }
 
+  const ageNum = parseInt(age, 10);
+  if (!ageNum || ageNum < 4 || ageNum > 120) {
+    res.status(400).json({ error: 'Please enter a valid age.' });
+    return;
+  }
+  if (ageNum < 13 && (!guardianEmail || !guardianConsent)) {
+    res.status(400).json({ error: 'A parent or guardian email and consent are required for users under 13.' });
+    return;
+  }
+
   const { error } = await supabaseAdmin.from('usernames').insert({ username: clean, email });
   if (error) {
     if (error.code === '23505') {
@@ -26,6 +36,15 @@ module.exports = async (req, res) => {
     }
     res.status(500).json({ error: error.message });
     return;
+  }
+
+  if (userId) {
+    await supabaseAdmin.from('profiles').upsert({
+      id: userId,
+      age: ageNum,
+      guardian_email: ageNum < 13 ? guardianEmail : null,
+      guardian_consent_at: ageNum < 13 ? new Date().toISOString() : null,
+    });
   }
 
   res.status(200).json({ ok: true });
