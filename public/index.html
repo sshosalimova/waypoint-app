@@ -159,7 +159,7 @@ const DIAGNOSTIC = [
 
 let state = {
   screen:'loading', session:null, profile:null,
-  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[]},
+  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}},
   diag:{idx:0, correctByLevel:{}, totalByLevel:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
@@ -234,6 +234,7 @@ async function loadProfileFromServer(){
       stagesCompleted: profile.stages_completed||[],
       mistakeTags: profile.mistake_tags||{},
       scoreHistory: profile.score_history||[],
+      masteredSkills: profile.mastered_skills||{},
     };
   } else {
     state.profile = null;
@@ -246,6 +247,7 @@ async function saveProfileToServer(){
     stages_completed: state.progress.stagesCompleted,
     mistake_tags: state.progress.mistakeTags,
     score_history: state.progress.scoreHistory,
+    mastered_skills: state.progress.masteredSkills,
   })});
 }
 async function callBackend(endpoint, messages, system, maxTokens){
@@ -270,6 +272,7 @@ function render(){
     welcome: renderWelcome, diagnostic: renderDiagnostic, diagResult: renderDiagResult,
     dashboard: renderDashboard, stageDetail: renderStageDetail, conversation: renderConversation,
     scoring: renderScoring, scoreResult: renderScoreResult, targetedPractice: renderTargetedPractice,
+    masteryPage: renderMasteryPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
 }
@@ -537,14 +540,56 @@ function renderDashboard(app){
   renderMistakeSummary(div.querySelector('#mistakesCard'));
 }
 function renderMistakeSummary(container){
-const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+  const masteredCount = Object.keys(state.progress.masteredSkills||{}).length;
+  const viewLink = masteredCount>0 ? `<button class="back-link" id="viewMasteryBtn" style="margin-top:8px;">View mastered skills (${masteredCount}) →</button>` : '';
   if(tags.length===0){
-    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>`; return;
+    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>${viewLink}`;
+  } else {
+    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Tap any skill to practice it:</p>
+      ${tags.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}
+      ${viewLink}`;
+    container.querySelectorAll('.mistake-chip').forEach(chip=>{
+      chip.addEventListener('click', ()=>{ startTargetedPractice(chip.dataset.tag); });
+    });
   }
-  container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Tap any skill to practice it:</p>
-    ${tags.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}`;
-  container.querySelectorAll('.mistake-chip').forEach(chip=>{
-    chip.addEventListener('click', ()=>{ startTargetedPractice(chip.dataset.tag); });
+  const vb = container.querySelector('#viewMasteryBtn');
+  if(vb) vb.addEventListener('click', ()=>{ state.screen='masteryPage'; render(); });
+}
+
+function renderMasteryPage(app){
+  const div = document.createElement('div');
+  const mastered = Object.entries(state.progress.masteredSkills||{}).sort((a,b)=> new Date(b[1].date)-new Date(a[1].date));
+  const active = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]);
+  div.innerHTML = `
+    <button class="back-link" id="backBtn">← Journey</button>
+    <div class="cover">
+      <span class="eyebrow">Your progress</span>
+      <h1>Skill mastery</h1>
+      <p>${mastered.length} skill${mastered.length===1?'':'s'} mastered so far.</p>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Still practicing</span>
+      ${active.length===0 ? `<p class="muted">Nothing currently flagged — nice work!</p>` :
+        active.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}
+    </div>
+    <div class="card">
+      <span class="eyebrow">Mastered</span>
+      ${mastered.length===0 ? `<p class="muted">Score 6/8 or better on a targeted practice set to mark a skill mastered — it'll stop showing up as a focus area.</p>` :
+        mastered.map(([tag,info])=>`
+          <div class="lesson-row">
+            <div class="lesson-info"><div class="lesson-icon">✅</div>
+              <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Mastered ${new Date(info.date).toLocaleDateString()} · scored ${info.score}</p></div>
+            </div>
+            <button class="btn secondary" data-tag="${tag}" data-retry="1">Practice again</button>
+          </div>
+        `).join('')}
+    </div>
+  `;
+  app.appendChild(div);
+  div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelectorAll('[data-tag]').forEach(el=>{
+    el.addEventListener('click', ()=>{ startTargetedPractice(el.dataset.tag); });
   });
 }
 
@@ -685,7 +730,10 @@ ${transcript}`;
     const result = extractJSON(raw);
     state.lastScoreResult = result;
     state.progress.scoreHistory.push({date: new Date().toISOString(), stage: state.convo.stage.n, scores: result.scores});
-    (result.mistakes||[]).forEach(m=>{ state.progress.mistakeTags[m.tag] = (state.progress.mistakeTags[m.tag]||0)+1; });
+    (result.mistakes||[]).forEach(m=>{
+      state.progress.mistakeTags[m.tag] = (state.progress.mistakeTags[m.tag]||0)+1;
+      if(state.progress.masteredSkills[m.tag]) delete state.progress.masteredSkills[m.tag];
+    });
     if(!state.progress.stagesCompleted.includes(state.convo.stage.n)){ state.progress.stagesCompleted.push(state.convo.stage.n); }
     if(state.convo.stage.n === state.profile.currentStage && state.profile.currentStage < 15){ state.profile.currentStage += 1; }
     await saveProfileToServer();
@@ -732,9 +780,8 @@ Respond with ONLY valid JSON, no markdown fences: {"questions":[{"level":1,"prom
 Create exactly 8 questions total, in this order:
 - Questions 1-4: level 1 - foundational, single-sentence practice of the "${tag}" pattern in isolation.
 - Questions 5-8: level 2 - harder - longer or more natural sentences, sometimes combining "${tag}" with a second nearby grammar point, requiring closer reading.
-Every question must have a "level" field set to exactly 1 or 2 matching its position. Vary the wording so no two questions feel repetitive. 
-CRITICAL JSON FORMATTING RULE: Never use a double-quote character inside any string value (no quoted dialogue, no "air quotes"). If a sentence would naturally
-need quotation marks, rephrase it without them or use single quotes instead. This is required for the JSON to parse correctly.`;
+Every question must have a "level" field set to exactly 1 or 2 matching its position. Vary the wording so no two questions feel repetitive.
+CRITICAL JSON FORMATTING RULE: Never use a double-quote character inside any string value (no quoted dialogue, no "air quotes"). If a sentence would naturally need quotation marks, rephrase it without them or use single quotes instead. This is required for the JSON to parse correctly.`;
   try{
     const raw = await callBackend('/api/practice', [{role:'user', content:'Generate the practice set now.'}], sys);
     const result = extractJSON(raw);
@@ -744,7 +791,7 @@ need quotation marks, rephrase it without them or use single quotes instead. Thi
   }
 }
 function renderTargetedPractice(app){
-    const tp = state.targetedPractice; const div = document.createElement('div');
+  const tp = state.targetedPractice; const div = document.createElement('div');
   if(tp.loading){
     div.innerHTML = `<div class="center" style="padding-top:100px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Building practice for "${tp.tag.replace(/-/g,' ')}"…</p></div>`;
     app.appendChild(div); return;
@@ -754,8 +801,18 @@ function renderTargetedPractice(app){
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
   if(tp.idx >= tp.questions.length){
+    if(!tp.masteryApplied){
+      tp.masteryApplied = true;
+      const passed = tp.correct >= 6;
+      if(passed){
+        delete state.progress.mistakeTags[tp.tag];
+        state.progress.masteredSkills[tp.tag] = { date: new Date().toISOString(), score: `${tp.correct}/${tp.questions.length}` };
+      }
+      saveProfileToServer();
+    }
+    const passed = tp.correct >= 6;
     div.innerHTML = `<div class="cover center"><span class="eyebrow">Practice complete</span><h1>${tp.correct} / ${tp.questions.length}</h1>
-      <p>Targeted practice: ${tp.tag.replace(/-/g,' ')} · both levels done</p></div><button class="btn block" id="back">Back to journey</button>`;
+      <p>${passed ? `🎉 Skill mastered! "${tp.tag.replace(/-/g,' ')}" is off your focus list.` : `Targeted practice: ${tp.tag.replace(/-/g,' ')} · keep at it, you'll get there.`}</p></div><button class="btn block" id="back">Back to journey</button>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
   const q = tp.questions[tp.idx];
