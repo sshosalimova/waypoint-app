@@ -3,14 +3,14 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Waypoint — Learn English for Real Life</title>
+<title>SpeakUp ESL — Learn English for Real Life</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   :root{
-    --ink:#16233B; --paper:#F6EFDD; --paper2:#EFE5C6; --stamp:#B23A2E; --teal:#1F7A72;
-    --gold:#C99A3E; --line:#D8CBA8; --muted:#6B6152; --white:#FFFDF7; --danger:#B23A2E; --good:#1F7A72; --radius:14px;
+    --ink:#123A66; --paper:#F3F8FF; --paper2:#DCEBFC; --stamp:#2F6FED; --teal:#1D8FD9;
+    --gold:#BBD8F7; --line:#C7DBF5; --muted:#5A7391; --white:#FFFFFF; --danger:#D64550; --good:#2E9E6B; --radius:14px;
   }
   *{box-sizing:border-box;}
   html,body{margin:0;padding:0;}
@@ -42,7 +42,7 @@
   .hidden{display:none !important;}
   .row{display:flex;gap:10px;flex-wrap:wrap;}
   .center{text-align:center;}
-  .error-box{background:#FBEAE7;border:1px solid #F0C7BF;color:var(--stamp);padding:10px 14px;border-radius:10px;font-size:13.5px;margin-bottom:12px;}
+  .error-box{background:#FBEAEA;border:1px solid #F0C0C4;color:var(--danger);padding:10px 14px;border-radius:10px;font-size:13.5px;margin-bottom:12px;}
   .cover{background:var(--ink);color:var(--paper);border-radius:20px;padding:36px 24px;margin-bottom:20px;position:relative;overflow:hidden;}
   .cover::before{content:"";position:absolute;inset:0;background-image:repeating-linear-gradient(135deg, rgba(246,239,221,0.035) 0 2px, transparent 2px 14px);}
   .cover .eyebrow{color:var(--gold);}
@@ -101,7 +101,7 @@
   .score-bar-label{display:flex;justify-content:space-between;font-size:13px;margin-bottom:5px;}
   .score-bar-track{height:10px;background:var(--paper2);border-radius:6px;overflow:hidden;}
   .score-bar-fill{height:100%;background:var(--teal);border-radius:6px;transition:width .6s ease;}
-  .mistake-chip{display:inline-block;background:#FBEAE7;color:var(--stamp);border:1px solid #F0C7BF;padding:5px 11px;
+  .mistake-chip{display:inline-block;background:#DCEBFC;color:var(--stamp);border:1px solid #B8D4F5;padding:5px 11px;
     border-radius:999px;font-size:12.5px;margin:3px 4px 3px 0;}
   .spinner{width:26px;height:26px;border:3px solid var(--paper2);border-top-color:var(--teal);border-radius:50%;
     animation:spin .8s linear infinite;margin:0 auto;}
@@ -325,7 +325,7 @@ function render(){
   (map[state.screen] || renderLoginScreen)(app);
 }
 function renderLoading(app){
-  app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading Waypoint…</p></div>`;
+  app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading SpeakUp ESL…</p></div>`;
 }
 
 /* ============================= AUTH SCREENS ============================= */
@@ -333,9 +333,9 @@ function renderLoginScreen(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover">
-      <div class="stamp-mark">WAY<br>POINT</div>
+      <div class="stamp-mark">SPEAK<br>UP</div>
       <span class="eyebrow">English for real life</span>
-      <h1>Waypoint</h1>
+      <h1>SpeakUp ESL</h1>
       <p>Practice English the way you'll actually use it.</p>
     </div>
     <div class="card">
@@ -375,7 +375,7 @@ function renderSignUpScreen(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover">
-      <div class="stamp-mark">WAY<br>POINT</div>
+      <div class="stamp-mark">SPEAK<br>UP</div>
       <span class="eyebrow">English for real life</span>
       <h1>Create your account</h1>
       <p>Takes under a minute.</p>
@@ -495,7 +495,7 @@ function renderWelcome(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover">
-      <div class="stamp-mark">WAY<br>POINT</div>
+      <div class="stamp-mark">SPEAK<br>UP</div>
       <span class="eyebrow">English for real life</span>
       <h1>Welcome!</h1>
       <p>Let's set up your journey. About 15 minutes a day.</p>
@@ -1035,10 +1035,10 @@ function renderPrivacyPage(app){
     <button class="back-link" id="backBtn">← Back</button>
     <div class="cover"><span class="eyebrow">Legal</span><h1>Privacy Policy</h1><p>Last updated: 2026</p></div>
     <div class="card">
-      <p><strong>What we collect:</strong> your name, email, age, and (for users under 13) a parent/guardian's email. We also store your English level, practice conversations, AI-generated scores and feedback, and progress such as streaks and mastered skills.</p>
+      <p><strong>What we collect:</strong> your name, email, age, and (for users under 13) a parent/guardian's email and consent. We also store your English level, practice conversations, AI-generated scores and feedback, and progress such as streaks and mastered skills.</p>
       <p><strong>How we use it:</strong> to run your account, personalize lessons, and improve the app. Conversation transcripts are sent to Anthropic (our AI provider) to generate replies and feedback.</p>
       <p><strong>Who we share it with:</strong> Supabase (our database and login provider), Anthropic (our AI provider), and Resend (our email provider). We do not sell your data.</p>
-      <p><strong>Children's privacy:</strong> for users under 13, we email a parent or guardian a link they must click to approve the account before it becomes active, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
+      <p><strong>Children's privacy:</strong> for users under 13, we require a parent or guardian's email and consent before creating an account, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
       <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
       <p><strong>Contact:</strong> [add your contact email here]</p>
       <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
@@ -1053,9 +1053,9 @@ function renderTermsPage(app){
     <button class="back-link" id="backBtn">← Back</button>
     <div class="cover"><span class="eyebrow">Legal</span><h1>Terms of Service</h1><p>Last updated: 2026</p></div>
     <div class="card">
-      <p><strong>Using Waypoint:</strong> Waypoint is an English-practice app. You agree to use it honestly, not to abuse or overload the AI conversation or scoring features, and not to attempt to access other users' accounts or data.</p>
-      <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's emailed approval before the account is active.</p>
-      <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. Waypoint is a practice tool, not a substitute for a certified language course or exam.</p>
+      <p><strong>Using SpeakUp ESL:</strong> SpeakUp ESL is an English-practice app. You agree to use it honestly, not to abuse or overload the AI conversation or scoring features, and not to attempt to access other users' accounts or data.</p>
+      <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's consent to create an account.</p>
+      <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUp ESL is a practice tool, not a substitute for a certified language course or exam.</p>
       <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
       <p><strong>Contact:</strong> [add your contact email here]</p>
       <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
@@ -1096,7 +1096,7 @@ function renderConsentConfirmPage(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover"><span class="eyebrow">Parental consent</span><h1>Confirm approval</h1>
-      <p>Click below to approve your child's Waypoint account.</p></div>
+      <p>Click below to approve your child's SpeakUp ESL account.</p></div>
     <div class="card" id="consentResult">
       <button class="btn block" id="approveBtn">Approve account →</button>
     </div>
