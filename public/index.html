@@ -732,7 +732,9 @@ Respond with ONLY valid JSON, no markdown fences: {"questions":[{"level":1,"prom
 Create exactly 8 questions total, in this order:
 - Questions 1-4: level 1 - foundational, single-sentence practice of the "${tag}" pattern in isolation.
 - Questions 5-8: level 2 - harder - longer or more natural sentences, sometimes combining "${tag}" with a second nearby grammar point, requiring closer reading.
-Every question must have a "level" field set to exactly 1 or 2 matching its position. Vary the wording so no two questions feel repetitive.`;
+Every question must have a "level" field set to exactly 1 or 2 matching its position. Vary the wording so no two questions feel repetitive. 
+CRITICAL JSON FORMATTING RULE: Never use a double-quote character inside any string value (no quoted dialogue, no "air quotes"). If a sentence would naturally
+need quotation marks, rephrase it without them or use single quotes instead. This is required for the JSON to parse correctly.`;
   try{
     const raw = await callBackend('/api/practice', [{role:'user', content:'Generate the practice set now.'}], sys);
     const result = extractJSON(raw);
