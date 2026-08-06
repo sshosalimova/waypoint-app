@@ -542,7 +542,9 @@ function renderMistakeSummary(container){
     container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>`; return;
   }
   container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Patterns from your recent conversations:</p>
-    ${tags.map(([tag,count])=>`<span class="mistake-chip">${tag.replace(/-/g,' ')} · ${count}×</span>`).join('')}`;
+    ${tags.map(([tag,count])=>`<span class="mistake-chip">${tag.replace(/-/g,' ')} · ${count}×</span>`).join('')}
+    <button class="btn teal block" id="dashPracticeBtn" style="margin-top:12px;">Practice "${tags[0][0].replace(/-/g,' ')}" now →</button>`;
+  container.querySelector('#dashPracticeBtn').addEventListener('click', ()=>{ startTargetedPractice(tags[0][0]); });
 }
 
 /* ============================= STAGE DETAIL ============================= */
