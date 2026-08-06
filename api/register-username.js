@@ -6,7 +6,7 @@ module.exports = async (req, res) => {
     return;
   }
 
-  const { username, email, userId, age, guardianEmail, guardianConsent } = req.body || {};
+  const { username, email, userId, age, guardianEmail } = req.body || {};
   if (!username || !email) {
     res.status(400).json({ error: 'Missing username or email' });
     return;
@@ -23,8 +23,8 @@ module.exports = async (req, res) => {
     res.status(400).json({ error: 'Please enter a valid age.' });
     return;
   }
-  if (ageNum < 13 && (!guardianEmail || !guardianConsent)) {
-    res.status(400).json({ error: 'A parent or guardian email and consent are required for users under 13.' });
+  if (ageNum < 13 && !guardianEmail) {
+    res.status(400).json({ error: 'A parent or guardian email is required for users under 13.' });
     return;
   }
 
@@ -43,7 +43,6 @@ module.exports = async (req, res) => {
       id: userId,
       age: ageNum,
       guardian_email: ageNum < 13 ? guardianEmail : null,
-      guardian_consent_at: ageNum < 13 ? new Date().toISOString() : null,
     });
   }
 
