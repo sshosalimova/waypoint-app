@@ -34,13 +34,18 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
-        max_tokens: 900,
+        max_tokens: 1800,
         system,
         messages,
       }),
     });
     const data = await r.json();
-    res.status(r.status).json(data);
+    if (!r.ok) {
+      const message = (data.error && data.error.message) || 'Claude API error';
+      res.status(r.status).json({ error: message });
+      return;
+    }
+    res.status(200).json(data);
   } catch (e) {
     res.status(500).json({ error: 'Upstream error contacting Claude' });
   }
