@@ -36,12 +36,12 @@ module.exports = async (req, res) => {
         Authorization: `Bearer ${process.env.RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: 'Waypoint <noreply@speakup-esl.org>',
+        from: 'SpeakUp ESL <noreply@speakup-esl.org>',
         to: guardianEmail,
-        subject: `Permission needed: ${username || 'your child'} wants to join Waypoint`,
+        subject: `Permission needed: ${username || 'your child'} wants to join SpeakUp ESL`,
         html: `<p>Hi,</p>
-<p><strong>${username || 'Your child'}</strong> is trying to create an account on Waypoint, an English-practice app for ESL learners. Because they're under 13, we need your permission before their account can be used.</p>
-<p>Waypoint will store their name, email, age, English level, and practice conversations (which are sent to an AI provider, Anthropic, to generate replies and feedback).</p>
+<p><strong>${username || 'Your child'}</strong> is trying to create an account on SpeakUp ESL, an English-practice app for ESL learners. Because they're under 13, we need your permission before their account can be used.</p>
+<p>SpeakUp ESL will store their name, email, age, English level, and practice conversations (which are sent to an AI provider, Anthropic, to generate replies and feedback).</p>
 <p>If you're comfortable with this, click below to approve their account:</p>
 <p><a href="${consentLink}">Approve ${username || "my child's"} account</a></p>
 <p>If you did not expect this email, you can ignore it — the account will stay inactive.</p>`,
