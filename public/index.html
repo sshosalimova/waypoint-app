@@ -569,8 +569,10 @@ function renderStageDetail(app){
 }
 
 /* ============================= CONVERSATION ============================= */
+let activeTimerId = null;
 function beginConversation(stage){
-  state.convo = {stage, messages:[], secondsLeft:180, speed:1, recognizing:false, usedVoice:false};
+  if(activeTimerId){ clearInterval(activeTimerId); activeTimerId = null; }
+  state.convo = {stage, messages:[], secondsLeft:180, speed:1, recognizing:false, usedVoice:false, ended:false};
   state.screen='conversation'; render(); fetchAIReply(true); startTimer();
 }
 function convoSystemPrompt(stage){
@@ -601,13 +603,13 @@ function speakText(text){
   }catch(e){}
 }
 function startTimer(){
-  clearInterval(state.convo.timerId);
-  state.convo.timerId = setInterval(()=>{
+  if(activeTimerId){ clearInterval(activeTimerId); }
+  activeTimerId = setInterval(()=>{
     state.convo.secondsLeft--;
     const el = document.getElementById('timerDisplay');
     if(el){ const m=Math.floor(Math.max(0,state.convo.secondsLeft)/60); const s=Math.max(0,state.convo.secondsLeft)%60;
       el.textContent = `${m}:${s.toString().padStart(2,'0')}`; }
-    if(state.convo.secondsLeft<=0){ clearInterval(state.convo.timerId); endConversation(); }
+    if(state.convo.secondsLeft<=0){ clearInterval(activeTimerId); activeTimerId=null; endConversation(); }
   },1000);
 }
 function renderConversation(app){
@@ -628,7 +630,8 @@ function renderConversation(app){
   app.appendChild(div);
   const log = div.querySelector('#chatLog'); log.scrollTop = log.scrollHeight;
   div.querySelector('#backBtn').addEventListener('click', ()=>{
-    clearInterval(state.convo.timerId); window.speechSynthesis && window.speechSynthesis.cancel();
+    if(activeTimerId){ clearInterval(activeTimerId); activeTimerId=null; }
+    window.speechSynthesis && window.speechSynthesis.cancel();
     state.screen='stageDetail'; render();
   });
   div.querySelector('#endBtn').addEventListener('click', endConversation);
@@ -659,7 +662,10 @@ function escapeHtml(str){ const d=document.createElement('div'); d.textContent=s
 
 /* ============================= SCORING ============================= */
 async function endConversation(){
-  clearInterval(state.convo.timerId); window.speechSynthesis && window.speechSynthesis.cancel();
+  if(state.convo.ended) return;
+  state.convo.ended = true;
+  if(activeTimerId){ clearInterval(activeTimerId); activeTimerId=null; }
+  window.speechSynthesis && window.speechSynthesis.cancel();
   if(state.convo.messages.filter(m=>m.role==='user').length===0){ state.screen='stageDetail'; render(); return; }
   state.screen='scoring'; render();
   const transcript = state.convo.messages.map(m=>`${m.role==='ai'?'Character':'Learner'}: ${m.text}`).join('\n');
