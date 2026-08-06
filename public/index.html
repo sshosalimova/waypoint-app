@@ -166,9 +166,9 @@ let state = {
 };
 
 /* ============================= AUTH ============================= */
-async function signUpUser(username, email, password){
+async function signUpUser(username, email, password, age, guardianEmail, guardianConsent){
   const clean = username.trim().toLowerCase();
-  const { error } = await sb.auth.signUp({
+  const { data, error } = await sb.auth.signUp({
     email, password,
     options:{ data:{ username: clean }, emailRedirectTo: window.location.href }
   });
@@ -176,7 +176,7 @@ async function signUpUser(username, email, password){
   try{
     const r = await fetch('/api/register-username', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ username: clean, email })
+      body: JSON.stringify({ username: clean, email, userId: data.user ? data.user.id : null, age, guardianEmail, guardianConsent })
     });
     const json = await r.json();
     if(!r.ok) return json.error || 'Could not reserve that username.';
@@ -330,7 +330,16 @@ function renderSignUpScreen(app){
       <input type="text" id="userInput" placeholder="Choose a username" style="margin-bottom:10px;">
       <input type="email" id="emailInput" placeholder="you@example.com" style="margin-bottom:10px;">
       <input type="text" id="passInput" placeholder="Choose a password" style="margin-bottom:10px;" data-pw="1">
-      <input type="text" id="passInput2" placeholder="Confirm password" style="margin-bottom:16px;" data-pw="1">
+      <input type="text" id="passInput2" placeholder="Confirm password" style="margin-bottom:10px;" data-pw="1">
+      <input type="text" id="ageInput" placeholder="Your age" style="margin-bottom:10px;">
+      <div id="guardianFields" class="hidden">
+        <p class="muted" style="margin-bottom:8px;">Since you're under 13, we need a parent or guardian's OK before creating your account.</p>
+        <input type="email" id="guardianEmailInput" placeholder="Parent/guardian email" style="margin-bottom:10px;">
+        <label style="display:flex;align-items:flex-start;gap:8px;font-size:13.5px;color:var(--muted);margin-bottom:10px;">
+          <input type="checkbox" id="guardianConsentCheck" style="margin-top:3px;">
+          <span>I am this student's parent or guardian, and I consent to their use of Waypoint, including saving their name, email, and practice progress.</span>
+        </label>
+      </div>
       <button class="btn block" id="signUpBtn">Create account →</button>
       <div style="margin-top:14px;">
         <button class="back-link" id="backToLogin">Already have an account? Log in</button>
@@ -340,16 +349,27 @@ function renderSignUpScreen(app){
   app.appendChild(div);
   div.querySelector('#passInput').type='password';
   div.querySelector('#passInput2').type='password';
+  const ageInput = div.querySelector('#ageInput');
+  const guardianFields = div.querySelector('#guardianFields');
+  ageInput.addEventListener('input', ()=>{
+    const age = parseInt(ageInput.value, 10);
+    guardianFields.classList.toggle('hidden', !(age>0 && age<13));
+  });
   div.querySelector('#signUpBtn').addEventListener('click', async ()=>{
     const username = div.querySelector('#userInput').value.trim();
     const email = div.querySelector('#emailInput').value.trim();
     const pw1 = div.querySelector('#passInput').value;
     const pw2 = div.querySelector('#passInput2').value;
-    if(!username || !email || !pw1){ state.authError='Please fill in every field.'; render(); return; }
+    const age = parseInt(ageInput.value, 10);
+    const guardianEmail = div.querySelector('#guardianEmailInput').value.trim();
+    const guardianConsent = div.querySelector('#guardianConsentCheck').checked;
+    if(!username || !email || !pw1 || !age){ state.authError='Please fill in every field, including your age.'; render(); return; }
     if(pw1 !== pw2){ state.authError='Passwords do not match.'; render(); return; }
     if(pw1.length < 8){ state.authError='Password must be at least 8 characters.'; render(); return; }
+    if(age < 4 || age > 120){ state.authError='Please enter a valid age.'; render(); return; }
+    if(age < 13 && (!guardianEmail || !guardianConsent)){ state.authError="Since you're under 13, a parent/guardian email and checked consent box are required."; render(); return; }
     div.querySelector('#signUpBtn').disabled = true;
-    const error = await signUpUser(username, email, pw1);
+    const error = await signUpUser(username, email, pw1, age, guardianEmail, guardianConsent);
     if(error){ state.authError = error; render(); return; }
     state.authError = null; state.lastEmail = email;
     state.checkEmailMode = 'signup';
@@ -723,6 +743,7 @@ Respond with ONLY valid JSON, no preamble, no markdown fences, matching exactly 
 "mistakes": [{"tag": "<short-kebab-case-grammar-or-vocab-tag>", "example": "<short quote from learner>", "correction": "<corrected version>"}],
 "feedback": "<2-3 sentence encouraging but honest feedback>"}
 Scoring guidance: vocabulary=range/appropriateness of word choice; grammar=tense/agreement/preposition/word order correctness; pronunciation=null (no audio access); comprehension=relevance of responses; confidence=based on response length/directness. List 1-5 concrete mistakes with reusable tags like "past-simple-irregular", "preposition-choice", "subject-verb-agreement", "article-usage". Empty array if none found.
+Feedback tone: be warm and genuinely encouraging. If the scores are strong (average 85+), be enthusiastic and celebratory ("Amazing work!", "Fantastic job!") and specifically call out what they did well. If scores are mixed, lead with something genuine they did well before mentioning what to work on. Always end on an encouraging note.
 Transcript:
 ${transcript}`;
   try{
@@ -754,8 +775,14 @@ function renderScoreResult(app){
   }
   const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],['Pronunciation', r.scores.pronunciation],
     ['Question comprehension', r.scores.comprehension],['Confidence', r.scores.confidence]];
+  const numericScores = [r.scores.vocabulary, r.scores.grammar, r.scores.comprehension, r.scores.confidence].filter(v=>typeof v==='number');
+  const avg = numericScores.length ? numericScores.reduce((a,b)=>a+b,0)/numericScores.length : 0;
+  let banner = '';
+  if(avg >= 90) banner = '🌟 Amazing work!';
+  else if(avg >= 75) banner = '🎉 Great job!';
+  else if(avg >= 60) banner = '👍 Nice progress!';
   div.innerHTML = `
-    <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>Nice work!</h1><p>${r.feedback||''}</p></div>
+    <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>${banner || 'Nice work!'}</h1><p>${r.feedback||''}</p></div>
     <div class="card"><span class="eyebrow">Your scores</span>
       ${cats.map(([label,val])=>`<div class="score-bar-row"><div class="score-bar-label"><span>${label}</span><span class="mono">${val===null||val===undefined?'—':val}</span></div>
         <div class="score-bar-track"><div class="score-bar-fill" style="width:${val||0}%;"></div></div></div>`).join('')}
