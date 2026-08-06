@@ -37,7 +37,7 @@
   .divider{border:none;border-top:1.5px dashed var(--line);margin:16px 0;}
   input[type=text], input[type=email], textarea{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;
     font-family:'Inter',sans-serif;font-size:15px;background:var(--white);color:var(--ink);}
-  input[data-pw="1"]{padding:16px 16px;font-size:17px;letter-spacing:1px;}
+  input[data-pw="1"]{padding:15px 16px;font-size:16px;letter-spacing:3px;border-radius:14px;}
   input:focus, textarea:focus{outline:none;border-color:var(--teal);}
   .hidden{display:none !important;}
   .row{display:flex;gap:10px;flex-wrap:wrap;}
@@ -319,6 +319,22 @@ function render(){
     rewardsPage: renderRewardsPage, levelsInfoPage: renderLevelsInfoPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
+  saveSessionSnapshot();
+}
+function saveSessionSnapshot(){
+  try{
+    if(state.screen==='conversation' && state.convo && state.convo.messages){
+      sessionStorage.setItem('speakup_snapshot', JSON.stringify({
+        screen:'conversation', convo:state.convo, activeStage:state.activeStage
+      }));
+    } else if(state.screen==='targetedPractice' && state.targetedPractice && state.targetedPractice.questions){
+      sessionStorage.setItem('speakup_snapshot', JSON.stringify({
+        screen:'targetedPractice', targetedPractice:state.targetedPractice
+      }));
+    } else {
+      sessionStorage.removeItem('speakup_snapshot');
+    }
+  }catch(e){}
 }
 function renderLoading(app){
   app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading SpeakUp ESL…</p></div>`;
@@ -1213,6 +1229,23 @@ function renderLevelsInfoPage(app){
   div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
 }
 
+/* ============================= IDLE TIMEOUT ============================= */
+let lastActivity = Date.now();
+const IDLE_LIMIT_MS = 10 * 60 * 1000;
+function resetActivityTimer(){ lastActivity = Date.now(); }
+['mousemove','keydown','click','touchstart','scroll'].forEach(evt=>{
+  window.addEventListener(evt, resetActivityTimer, {passive:true});
+});
+setInterval(async ()=>{
+  if(!state.session) return;
+  if(Date.now() - lastActivity > IDLE_LIMIT_MS){
+    await sb.auth.signOut();
+    state.session = null; state.profile = null;
+    state.authError = "You were signed out after 10 minutes of inactivity. Please log back in.";
+    state.screen = 'loginScreen'; render();
+  }
+}, 30000);
+
 /* ============================= INIT ============================= */
 async function boot(){
   state.screen = 'loading'; render();
@@ -1229,15 +1262,35 @@ async function boot(){
   if(!state.session){ state.screen='loginScreen'; render(); return; }
   try{
     await loadProfileFromServer();
-    if(state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt){
-      state.screen = 'waitingForConsent';
-    } else {
-      state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
+    let restored = false;
+    try{
+      const snap = sessionStorage.getItem('speakup_snapshot');
+      if(snap){
+        const parsed = JSON.parse(snap);
+        if(parsed.screen==='conversation' && parsed.convo){
+          state.convo = parsed.convo; state.convo.ended = false;
+          state.activeStage = parsed.activeStage;
+          state.screen = 'conversation';
+          restored = true;
+        } else if(parsed.screen==='targetedPractice' && parsed.targetedPractice){
+          state.targetedPractice = parsed.targetedPractice;
+          state.screen = 'targetedPractice';
+          restored = true;
+        }
+      }
+    }catch(e){}
+    if(!restored){
+      if(state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt){
+        state.screen = 'waitingForConsent';
+      } else {
+        state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
+      }
     }
   }catch(e){
     console.error(e); state.screen='welcome';
   }
   render();
+  if(state.screen==='conversation' && state.convo && !state.convo.ended){ startTimer(); }
 }
 sb.auth.onAuthStateChange((event, session)=>{
   state.session = session;
