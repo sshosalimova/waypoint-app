@@ -537,14 +537,15 @@ function renderDashboard(app){
   renderMistakeSummary(div.querySelector('#mistakesCard'));
 }
 function renderMistakeSummary(container){
-  const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
+const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
   if(tags.length===0){
     container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>`; return;
   }
-  container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Patterns from your recent conversations:</p>
-    ${tags.map(([tag,count])=>`<span class="mistake-chip">${tag.replace(/-/g,' ')} · ${count}×</span>`).join('')}
-    <button class="btn teal block" id="dashPracticeBtn" style="margin-top:12px;">Practice "${tags[0][0].replace(/-/g,' ')}" now →</button>`;
-  container.querySelector('#dashPracticeBtn').addEventListener('click', ()=>{ startTargetedPractice(tags[0][0]); });
+  container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Tap any skill to practice it:</p>
+    ${tags.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}`;
+  container.querySelectorAll('.mistake-chip').forEach(chip=>{
+    chip.addEventListener('click', ()=>{ startTargetedPractice(chip.dataset.tag); });
+  });
 }
 
 /* ============================= STAGE DETAIL ============================= */
@@ -726,19 +727,22 @@ function renderScoreResult(app){
 async function startTargetedPractice(tag){
   state.targetedPractice = {loading:true, tag, questions:null, idx:0, correct:0};
   state.screen='targetedPractice'; render();
-  const sys = `You are an ESL exercise generator. Create a short adaptive practice set targeting exactly this mistake pattern: "${tag}" for a learner at CEFR level ${state.profile.level}.
-Respond with ONLY valid JSON, no markdown fences: {"questions":[{"prompt":"<question testing this exact pattern>","options":["a","b","c","d"],"answer":"<exact matching option text>","explanation":"<one sentence rule>"}]}
-Create exactly 4 questions, varied wording, all targeting "${tag}".`;
+  const sys = `You are an ESL exercise generator. Create an adaptive, two-level practice set targeting exactly this mistake pattern: "${tag}" for a learner at CEFR level ${state.profile.level}.
+Respond with ONLY valid JSON, no markdown fences: {"questions":[{"level":1,"prompt":"...","options":["a","b","c","d"],"answer":"...","explanation":"..."}, ...]}
+Create exactly 8 questions total, in this order:
+- Questions 1-4: level 1 - foundational, single-sentence practice of the "${tag}" pattern in isolation.
+- Questions 5-8: level 2 - harder - longer or more natural sentences, sometimes combining "${tag}" with a second nearby grammar point, requiring closer reading.
+Every question must have a "level" field set to exactly 1 or 2 matching its position. Vary the wording so no two questions feel repetitive.`;
   try{
     const raw = await callBackend('/api/practice', [{role:'user', content:'Generate the practice set now.'}], sys);
     const result = extractJSON(raw);
-    state.targetedPractice = {loading:false, tag, questions:result.questions, idx:0, correct:0}; render();
+    state.targetedPractice = {loading:false, tag, questions:result.questions, idx:0, correct:0, shownLevelUp:false}; render();
   }catch(e){
     console.error(e); state.targetedPractice = {loading:false, tag, questions:[], idx:0, correct:0, error:e.message}; render();
   }
 }
 function renderTargetedPractice(app){
-  const tp = state.targetedPractice; const div = document.createElement('div');
+    const tp = state.targetedPractice; const div = document.createElement('div');
   if(tp.loading){
     div.innerHTML = `<div class="center" style="padding-top:100px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Building practice for "${tp.tag.replace(/-/g,' ')}"…</p></div>`;
     app.appendChild(div); return;
@@ -749,12 +753,21 @@ function renderTargetedPractice(app){
   }
   if(tp.idx >= tp.questions.length){
     div.innerHTML = `<div class="cover center"><span class="eyebrow">Practice complete</span><h1>${tp.correct} / ${tp.questions.length}</h1>
-      <p>Targeted practice: ${tp.tag.replace(/-/g,' ')}</p></div><button class="btn block" id="back">Back to journey</button>`;
+      <p>Targeted practice: ${tp.tag.replace(/-/g,' ')} · both levels done</p></div><button class="btn block" id="back">Back to journey</button>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
   const q = tp.questions[tp.idx];
+  if(q.level===2 && !tp.shownLevelUp){
+    div.innerHTML = `<div class="cover center">
+      <span class="eyebrow">Level up</span><h1>🎯 Level 2 unlocked</h1>
+      <p>Nice work on the basics. These next four get harder — longer sentences, closer reading.</p>
+    </div><button class="btn block" id="continueBtn">Continue →</button>`;
+    app.appendChild(div);
+    div.querySelector('#continueBtn').addEventListener('click', ()=>{ tp.shownLevelUp = true; render(); });
+    return;
+  }
   div.innerHTML = `
-    <div class="top-nav"><span class="eyebrow">Targeted practice · ${tp.tag.replace(/-/g,' ')}</span>
+    <div class="top-nav"><span class="eyebrow">Targeted practice · ${tp.tag.replace(/-/g,' ')} · Level ${q.level||1}</span>
       <span class="mono muted" style="font-size:12px;">${tp.idx+1} / ${tp.questions.length}</span></div>
     <div class="card"><h2>${escapeHtml(q.prompt)}</h2>
       <div id="opts" style="margin-top:14px;">${q.options.map((o,idx)=>`<button class="option" data-idx="${idx}">${escapeHtml(o)}</button>`).join('')}</div>
