@@ -159,7 +159,7 @@ const DIAGNOSTIC = [
 
 let state = {
   screen:'loading', session:null, profile:null,
-  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}},
+  progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null},
   diag:{idx:0, correctByLevel:{}, totalByLevel:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
@@ -235,6 +235,8 @@ async function loadProfileFromServer(){
       mistakeTags: profile.mistake_tags||{},
       scoreHistory: profile.score_history||[],
       masteredSkills: profile.mastered_skills||{},
+      streakCount: profile.streak_count||0,
+      lastActiveDate: profile.last_active_date||null,
     };
   } else {
     state.profile = null;
@@ -248,7 +250,17 @@ async function saveProfileToServer(){
     mistake_tags: state.progress.mistakeTags,
     score_history: state.progress.scoreHistory,
     mastered_skills: state.progress.masteredSkills,
+    streak_count: state.progress.streakCount,
+    last_active_date: state.progress.lastActiveDate,
   })});
+}
+function updateStreak(){
+  const today = new Date().toISOString().slice(0,10);
+  const last = state.progress.lastActiveDate;
+  if(last === today) return;
+  const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
+  state.progress.streakCount = (last === yesterday) ? (state.progress.streakCount||0)+1 : 1;
+  state.progress.lastActiveDate = today;
 }
 async function callBackend(endpoint, messages, system, maxTokens){
   const data = await authedFetch(endpoint, { method:'POST', body: JSON.stringify({messages, system}) });
@@ -547,7 +559,9 @@ function renderDashboard(app){
   div.innerHTML = `
     <div class="top-nav">
       <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
-      <div style="display:flex;align-items:center;gap:10px;"><span class="level-pill">${state.profile.level}</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
+        <span class="level-pill">${state.profile.level}</span>
         <button class="back-link" id="signOutBtn">Sign out</button></div>
     </div>
     <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span><div class="journey-scroll">${stopsHtml}</div></div>
@@ -757,6 +771,7 @@ ${transcript}`;
     });
     if(!state.progress.stagesCompleted.includes(state.convo.stage.n)){ state.progress.stagesCompleted.push(state.convo.stage.n); }
     if(state.convo.stage.n === state.profile.currentStage && state.profile.currentStage < 15){ state.profile.currentStage += 1; }
+    updateStreak();
     await saveProfileToServer();
     state.screen='scoreResult'; render();
   }catch(e){
@@ -835,6 +850,7 @@ function renderTargetedPractice(app){
         delete state.progress.mistakeTags[tp.tag];
         state.progress.masteredSkills[tp.tag] = { date: new Date().toISOString(), score: `${tp.correct}/${tp.questions.length}` };
       }
+      updateStreak();
       saveProfileToServer();
     }
     const passed = tp.correct >= 6;
