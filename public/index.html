@@ -208,6 +208,7 @@ const THEMES = [
   {id:'butter', name:'Butter', paper:'#FFFBEE', paper2:'#FBF0C4', cost:20},
 ];
 const LANGUAGES = [
+  {code:'en', name:'English'},
   {code:'es', name:'Spanish'}, {code:'fr', name:'French'}, {code:'pt', name:'Portuguese'},
   {code:'zh', name:'Chinese (Mandarin)'}, {code:'ar', name:'Arabic'}, {code:'vi', name:'Vietnamese'},
   {code:'hi', name:'Hindi'}, {code:'ko', name:'Korean'}, {code:'ru', name:'Russian'}, {code:'ja', name:'Japanese'},
@@ -1623,7 +1624,7 @@ function renderLevelsInfoPage(app){
 
 /* ============================= IDLE TIMEOUT ============================= */
 let lastActivity = Date.now();
-const IDLE_LIMIT_MS = 10 * 60 * 1000;
+const IDLE_LIMIT_MS = 20 * 60 * 1000;
 function resetActivityTimer(){ lastActivity = Date.now(); }
 ['mousemove','keydown','click','touchstart','scroll'].forEach(evt=>{
   window.addEventListener(evt, resetActivityTimer, {passive:true});
