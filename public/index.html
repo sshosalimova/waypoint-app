@@ -1221,7 +1221,7 @@ function renderScoreResult(app){
       <button class="btn block" id="back">Back to journey</button></div>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
-  const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],['Pronunciation', r.scores.pronunciation],
+ const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],
     ['Question comprehension', r.scores.comprehension],['Confidence', r.scores.confidence]];
   const numericScores = [r.scores.vocabulary, r.scores.grammar, r.scores.comprehension, r.scores.confidence].filter(v=>typeof v==='number');
   const avg = numericScores.length ? numericScores.reduce((a,b)=>a+b,0)/numericScores.length : 0;
