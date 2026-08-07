@@ -752,7 +752,9 @@ function renderDashboard(app){
         <button class="back-link" id="settingsBtn">Settings</button>
         <button class="back-link" id="signOutBtn">Sign out</button></div>
     </div>
-    <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span><div class="journey-scroll">${stopsHtml}</div></div>
+    <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span>
+      ${state.progress.dreamGoal ? `<p class="muted" style="margin-bottom:10px;">🎯 Your goal: ${escapeHtml(state.progress.dreamGoal)}</p>` : ''}
+      <div class="journey-scroll">${stopsHtml}</div></div>
     <div class="card">
       <span class="eyebrow">English level progress</span>
       <div class="row" style="justify-content:space-between;margin:8px 0 6px;font-size:12px;" class="muted">
