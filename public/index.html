@@ -178,6 +178,13 @@ const AVATARS = [
   {id:'boy-5', emoji:'🧔', label:'Boy', cost:35},
 ];
 
+const ACCOMPLISHMENTS = {
+  1:"Successfully introduced yourself!", 2:"Successfully talked about your family!", 3:"Successfully arranged a meeting time!",
+  4:"Successfully shopped for clothes!", 5:"Successfully ordered food!", 6:"Successfully asked for directions!",
+  7:"Successfully made small talk!", 8:"Successfully made plans with a friend!", 9:"Successfully described symptoms at the pharmacy!",
+  10:"Successfully talked about your job!", 11:"Successfully handled a phone call!", 12:"Successfully resolved a complaint!",
+  13:"Successfully passed a job interview!", 14:"Successfully defended your opinion in a debate!", 15:"Successfully shared a nuanced opinion!",
+};
 let state = {
   screen:'loading', session:null, profile:null,
   progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null,
@@ -333,15 +340,16 @@ function render(){
   (map[state.screen] || renderLoginScreen)(app);
   saveSessionSnapshot();
 }
+const RESUMABLE_SCREENS = ['dashboard','stageDetail','conversation','targetedPractice','masteryPage','settingsPage','progressPage','rewardsPage','levelsInfoPage','diagnostic','diagResult','welcome'];
 function saveSessionSnapshot(){
   try{
-    if(state.screen==='conversation' && state.convo && state.convo.messages){
+    if(RESUMABLE_SCREENS.includes(state.screen)){
       sessionStorage.setItem('speakup_snapshot', JSON.stringify({
-        screen:'conversation', convo:state.convo, activeStage:state.activeStage
-      }));
-    } else if(state.screen==='targetedPractice' && state.targetedPractice && state.targetedPractice.questions){
-      sessionStorage.setItem('speakup_snapshot', JSON.stringify({
-        screen:'targetedPractice', targetedPractice:state.targetedPractice
+        screen: state.screen,
+        activeStage: state.activeStage,
+        convo: state.screen==='conversation' ? state.convo : undefined,
+        targetedPractice: state.screen==='targetedPractice' ? state.targetedPractice : undefined,
+        diag: state.screen==='diagnostic' ? state.diag : undefined,
       }));
     } else {
       sessionStorage.removeItem('speakup_snapshot');
@@ -381,6 +389,7 @@ function renderLoginScreen(app){
   `;
   app.appendChild(div);
   const passEl = div.querySelector('#passInput'); passEl.type='password';
+  addPasswordToggle(passEl);
   div.querySelector('#loginBtn').addEventListener('click', async ()=>{
     const username = div.querySelector('#userInput').value.trim();
     const password = passEl.value;
@@ -424,6 +433,8 @@ function renderSignUpScreen(app){
   app.appendChild(div);
   div.querySelector('#passInput').type='password';
   div.querySelector('#passInput2').type='password';
+  addPasswordToggle(div.querySelector('#passInput'));
+  addPasswordToggle(div.querySelector('#passInput2'));
   const ageInput = div.querySelector('#ageInput');
   const guardianFields = div.querySelector('#guardianFields');
   ageInput.addEventListener('input', ()=>{
@@ -489,6 +500,8 @@ function renderResetPassword(app){
   app.appendChild(div);
   div.querySelector('#passInput').type='password';
   div.querySelector('#passInput2').type='password';
+  addPasswordToggle(div.querySelector('#passInput'));
+  addPasswordToggle(div.querySelector('#passInput2'));
   div.querySelector('#saveBtn').addEventListener('click', async ()=>{
     const pw1 = div.querySelector('#passInput').value;
     const pw2 = div.querySelector('#passInput2').value;
@@ -642,6 +655,13 @@ function renderDashboard(app){
         <button class="back-link" id="signOutBtn">Sign out</button></div>
     </div>
     <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span><div class="journey-scroll">${stopsHtml}</div></div>
+    <div class="card">
+      <span class="eyebrow">English level progress</span>
+      <div class="row" style="justify-content:space-between;margin:8px 0 6px;font-size:12px;" class="muted">
+        ${CEFR.map(l=>`<span class="mono" style="color:${l===state.profile.level?'var(--stamp)':'var(--muted)'};font-weight:${l===state.profile.level?'700':'400'};">${l}</span>`).join('')}
+      </div>
+      <div class="progress-bar" style="margin-bottom:0;"><div style="width:${((CEFR.indexOf(state.profile.level)+1)/CEFR.length*100)}%;"></div></div>
+    </div>
     <div class="card" id="mistakesCard"></div>`;
   app.appendChild(div);
   div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
@@ -794,6 +814,7 @@ Rules:
 - Keep each reply short: 1-3 sentences.
 - Ask a question or prompt a response almost every turn.
 - Do not correct the learner's grammar mid-conversation.
+- Adapt to the learner as the conversation goes: if their replies are short, hesitant, or show basic errors, respond with shorter sentences, simpler vocabulary, and ask more direct, easy-to-answer questions to keep them going. If their replies are fluent, detailed, and accurate, use longer, more natural sentences and richer vocabulary, and ask more open-ended questions.
 - Open the conversation with a natural first line appropriate to the scenario.`;
 }
 function apiMessagesFromConvo(){ return state.convo.messages.map(m=>({role: m.role==='ai'?'assistant':'user', content:m.text})); }
@@ -868,6 +889,22 @@ function toggleMic(){
   rec.onerror = ()=>{ state.convo.recognizing=false; btn.classList.remove('recording'); };
   rec.start();
 }
+function addPasswordToggle(input){
+  const wrapper = document.createElement('div');
+  wrapper.style.position = 'relative';
+  input.parentNode.insertBefore(wrapper, input);
+  wrapper.appendChild(input);
+  input.style.paddingRight = '46px';
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.textContent = '👁️';
+  btn.style.cssText = 'position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;font-size:16px;cursor:pointer;padding:4px;';
+  btn.addEventListener('click', ()=>{
+    if(input.type==='password'){ input.type='text'; btn.textContent='🙈'; }
+    else { input.type='password'; btn.textContent='👁️'; }
+  });
+  wrapper.appendChild(btn);
+}
 function escapeHtml(str){ const d=document.createElement('div'); d.textContent=str; return d.innerHTML; }
 
 /* ============================= SCORING ============================= */
@@ -928,7 +965,9 @@ function renderScoreResult(app){
   else if(avg >= 75) banner = '🎉 Great job!';
   else if(avg >= 60) banner = '👍 Nice progress!';
   div.innerHTML = `
-    <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>${banner || 'Nice work!'}</h1><p>${r.feedback||''}</p></div>
+    <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>${banner || 'Nice work!'}</h1>
+      ${avg>=70 && ACCOMPLISHMENTS[state.convo.stage.n] ? `<p style="font-weight:600;">🏆 ${ACCOMPLISHMENTS[state.convo.stage.n]}</p>` : ''}
+      <p>${r.feedback||''}</p></div>
     <div class="card"><span class="eyebrow">Your scores</span>
       ${cats.map(([label,val])=>`<div class="score-bar-row"><div class="score-bar-label"><span>${label}</span><span class="mono">${val===null||val===undefined?'—':val}</span></div>
         <div class="score-bar-track"><div class="score-bar-fill" style="width:${val||0}%;"></div></div></div>`).join('')}
@@ -958,7 +997,7 @@ CRITICAL JSON FORMATTING RULE: Never use a double-quote character inside any str
   try{
     const raw = await callBackend('/api/practice', [{role:'user', content:'Generate the practice set now.'}], sys);
     const result = extractJSON(raw);
-    state.targetedPractice = {loading:false, tag, questions:result.questions, idx:0, correct:0, shownLevelUp:false}; render();
+    state.targetedPractice = {loading:false, tag, questions:result.questions, idx:0, correct:0, correctByLevel:{1:0,2:0}, shownLevelUp:false, levelGateChecked:false}; render();
   }catch(e){
     console.error(e); state.targetedPractice = {loading:false, tag, questions:[], idx:0, correct:0, error:e.message}; render();
   }
@@ -973,6 +1012,22 @@ function renderTargetedPractice(app){
     div.innerHTML = `<div class="card"><h2>Couldn't build practice</h2><p class="muted">${tp.error||'Try again from the stage page.'}</p><button class="btn block" id="back">Back</button></div>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
+  const q = tp.questions[tp.idx];
+
+  // Gate: must score 3/4 or better on level 1 before level 2 unlocks
+  if(q && q.level===2 && !tp.levelGateChecked){
+    tp.levelGateChecked = true;
+    if((tp.correctByLevel[1]||0) < 3){
+      div.innerHTML = `<div class="cover center">
+        <span class="eyebrow">Almost there</span><h1>Keep practicing Level 1</h1>
+        <p>You got ${tp.correctByLevel[1]||0}/4 on the basics. Score 3/4 or better to unlock Level 2 — tap the skill again from your dashboard for a fresh set.</p>
+      </div><button class="btn block" id="back">Back to journey</button>`;
+      app.appendChild(div);
+      div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+      return;
+    }
+  }
+
   if(tp.idx >= tp.questions.length){
     if(!tp.masteryApplied){
       tp.masteryApplied = true;
@@ -990,7 +1045,6 @@ function renderTargetedPractice(app){
       <p>${passed ? `🎉 Skill mastered! "${tp.tag.replace(/-/g,' ')}" is off your focus list.` : `Targeted practice: ${tp.tag.replace(/-/g,' ')} · keep at it, you'll get there.`}</p></div><button class="btn block" id="back">Back to journey</button>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
-  const q = tp.questions[tp.idx];
   if(q.level===2 && !tp.shownLevelUp){
     div.innerHTML = `<button class="back-link" id="journeyBtn">← Journey</button>
     <div class="cover center">
@@ -1017,7 +1071,10 @@ function renderTargetedPractice(app){
   opts.forEach(o=>o.addEventListener('click', ()=>{
     if(answered) return; answered=true;
     const chosen = q.options[parseInt(o.dataset.idx)]; const correct = chosen === q.answer;
-    if(correct){ o.style.borderColor='var(--good)'; o.style.background='#E9F5F1'; tp.correct++; }
+    if(correct){
+      o.style.borderColor='var(--good)'; o.style.background='#E9F5F1'; tp.correct++;
+      tp.correctByLevel[q.level] = (tp.correctByLevel[q.level]||0)+1;
+    }
     else{ o.style.borderColor='var(--danger)'; o.style.background='#FBEAE7'; }
     opts.forEach(x=>{ if(x.textContent===q.answer){ x.style.borderColor='var(--good)'; x.style.background='#E9F5F1'; } });
     const ex = div.querySelector('#explain'); ex.textContent = q.explanation||''; ex.classList.remove('hidden');
@@ -1029,26 +1086,54 @@ function renderTargetedPractice(app){
 /* ============================= PROGRESS CHART ============================= */
 function renderProgressPage(app){
   const div = document.createElement('div');
-  const history = state.progress.scoreHistory||[];
-  let barsHtml = '<p class="muted">Complete a few conversations and your score history will show up here.</p>';
+  const allHistory = state.progress.scoreHistory||[];
+  const history = allHistory.slice(-8);
+  let bodyHtml = '<p class="muted">Complete a few conversations and your progress will show up here.</p>';
   if(history.length > 0){
     const points = history.map(h=>{
       const nums = [h.scores.vocabulary, h.scores.grammar, h.scores.comprehension, h.scores.confidence].filter(v=>typeof v==='number');
       const avg = nums.length ? Math.round(nums.reduce((a,b)=>a+b,0)/nums.length) : 0;
       return { avg, date: h.date, stage: h.stage };
     });
-    barsHtml = points.map(p=>`
-      <div class="score-bar-row">
-        <div class="score-bar-label"><span>${new Date(p.date).toLocaleDateString()} · Stage ${p.stage}</span><span class="mono">${p.avg}</span></div>
-        <div class="score-bar-track"><div class="score-bar-fill" style="width:${p.avg}%;"></div></div>
+    const overallAvg = Math.round(points.reduce((a,p)=>a+p.avg,0)/points.length);
+    let trend = '→ Steady';
+    if(points.length>=2){
+      const half = Math.ceil(points.length/2);
+      const firstAvg = points.slice(0,half).reduce((a,p)=>a+p.avg,0)/half;
+      const secondAvg = points.slice(-half).reduce((a,p)=>a+p.avg,0)/half;
+      if(secondAvg - firstAvg >= 5) trend = '↑ Improving';
+      else if(firstAvg - secondAvg >= 5) trend = '↓ Needs practice';
+    }
+    const W = 320, H = 140, padL = 8, padR = 8, padT = 16, padB = 8;
+    const stepX = points.length>1 ? (W-padL-padR)/(points.length-1) : 0;
+    const yFor = v => padT + (100-v)/100 * (H-padT-padB);
+    const coords = points.map((p,i)=>[padL + i*stepX, yFor(p.avg)]);
+    const linePath = coords.map((c,i)=>(i===0?'M':'L')+c[0].toFixed(1)+','+c[1].toFixed(1)).join(' ');
+    const areaPath = linePath + ` L${coords[coords.length-1][0].toFixed(1)},${H-padB} L${coords[0][0].toFixed(1)},${H-padB} Z`;
+    const dotsSvg = coords.map((c,i)=>`<circle cx="${c[0].toFixed(1)}" cy="${c[1].toFixed(1)}" r="4" fill="var(--stamp)" stroke="var(--white)" stroke-width="2"/>`).join('');
+    bodyHtml = `
+      <div class="row" style="justify-content:space-between;margin-bottom:14px;">
+        <div><div class="muted" style="font-size:12px;">Average score</div><div style="font-size:26px;font-family:'Fraunces',serif;">${overallAvg}</div></div>
+        <div><div class="muted" style="font-size:12px;">Trend</div><div style="font-size:18px;font-family:'Fraunces',serif;">${trend}</div></div>
       </div>
-    `).join('');
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;">
+        <line x1="${padL}" y1="${H-padB}" x2="${W-padR}" y2="${H-padB}" stroke="var(--line)" stroke-width="1"/>
+        <path d="${areaPath}" fill="var(--paper2)" opacity="0.7"/>
+        <path d="${linePath}" fill="none" stroke="var(--teal)" stroke-width="2.5"/>
+        ${dotsSvg}
+      </svg>
+      <div class="row" style="justify-content:space-between;margin-top:4px;">
+        <span class="muted" style="font-size:11px;">${new Date(points[0].date).toLocaleDateString()}</span>
+        <span class="muted" style="font-size:11px;">${new Date(points[points.length-1].date).toLocaleDateString()}</span>
+      </div>
+      ${allHistory.length > 8 ? `<p class="muted" style="margin-top:10px;font-size:12.5px;">Showing your last 8 sessions of ${allHistory.length} total.</p>` : ''}
+    `;
   }
   div.innerHTML = `
     <button class="back-link" id="backBtn">← Settings</button>
     <div class="cover"><span class="eyebrow">Your progress</span><h1>Score history</h1>
-      <p>${history.length} conversation${history.length===1?'':'s'} scored so far.</p></div>
-    <div class="card"><span class="eyebrow">Average score per conversation</span>${barsHtml}</div>
+      <p>${allHistory.length} conversation${allHistory.length===1?'':'s'} scored so far.</p></div>
+    <div class="card">${bodyHtml}</div>
   `;
   app.appendChild(div);
   div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
@@ -1066,8 +1151,8 @@ function renderPrivacyPage(app){
       <p><strong>Who we share it with:</strong> Supabase (our database and login provider), Anthropic (our AI provider), and Resend (our email provider). We do not sell your data.</p>
       <p><strong>Children's privacy:</strong> for users under 13, we require a parent or guardian's email and consent before creating an account, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
       <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
-      <p><strong>Contact:</strong> [sshosalimova!gmail.com]</p>
-      <p class="muted">This is not legal advice — please reread terms of service if uncertain.</p>
+      <p><strong>Contact:</strong> support@speakup-esl.org</p>
+      <p class="muted">This is not legal advice if concerned of privacy please email sshosalimova@gmail.com.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1083,8 +1168,8 @@ function renderTermsPage(app){
       <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's consent to create an account.</p>
       <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUp ESL is a practice tool, not a substitute for a certified language course or exam.</p>
       <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
-      <p><strong>Contact:</strong> [sshosalimova@gmail.com]</p>
-      <p class="muted">This is not legal advice — please reread terms of service if uncertain.</p>
+      <p><strong>Contact:</strong> support@speakup-esl.org</p>
+      <p class="muted">This is not legal advice if concerned of privacy please email sshosalimova@gmail.com. </p>
     </div>
   `;
   app.appendChild(div);
@@ -1274,25 +1359,30 @@ async function boot(){
   if(!state.session){ state.screen='loginScreen'; render(); return; }
   try{
     await loadProfileFromServer();
+    const needsConsentGate = state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt;
     let restored = false;
-    try{
-      const snap = sessionStorage.getItem('speakup_snapshot');
-      if(snap){
-        const parsed = JSON.parse(snap);
-        if(parsed.screen==='conversation' && parsed.convo){
-          state.convo = parsed.convo; state.convo.ended = false;
-          state.activeStage = parsed.activeStage;
-          state.screen = 'conversation';
-          restored = true;
-        } else if(parsed.screen==='targetedPractice' && parsed.targetedPractice){
-          state.targetedPractice = parsed.targetedPractice;
-          state.screen = 'targetedPractice';
-          restored = true;
+    if(!needsConsentGate){
+      try{
+        const snap = sessionStorage.getItem('speakup_snapshot');
+        if(snap){
+          const parsed = JSON.parse(snap);
+          if(RESUMABLE_SCREENS.includes(parsed.screen)){
+            state.activeStage = parsed.activeStage;
+            if(parsed.screen==='conversation' && parsed.convo){ state.convo = parsed.convo; state.convo.ended = false; }
+            if(parsed.screen==='targetedPractice' && parsed.targetedPractice){ state.targetedPractice = parsed.targetedPractice; }
+            if(parsed.screen==='diagnostic' && parsed.diag){ state.diag = parsed.diag; }
+            if((parsed.screen==='dashboard' || parsed.screen==='diagResult' || parsed.screen==='welcome') && !(state.profile && state.profile.level) && parsed.screen!=='welcome'){
+              // profile isn't ready for a level-dependent screen - fall through to default logic
+            } else {
+              state.screen = parsed.screen;
+              restored = true;
+            }
+          }
         }
-      }
-    }catch(e){}
+      }catch(e){}
+    }
     if(!restored){
-      if(state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt){
+      if(needsConsentGate){
         state.screen = 'waitingForConsent';
       } else {
         state.screen = (state.profile && state.profile.level) ? 'dashboard' : 'welcome';
