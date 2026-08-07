@@ -207,12 +207,57 @@ const THEMES = [
   {id:'blush', name:'Blush', paper:'#FFF3F5', paper2:'#FBDCE2', cost:20},
   {id:'butter', name:'Butter', paper:'#FFFBEE', paper2:'#FBF0C4', cost:20},
 ];
+const LANGUAGES = [
+  {code:'es', name:'Spanish'}, {code:'fr', name:'French'}, {code:'pt', name:'Portuguese'},
+  {code:'zh', name:'Chinese (Mandarin)'}, {code:'ar', name:'Arabic'}, {code:'vi', name:'Vietnamese'},
+  {code:'hi', name:'Hindi'}, {code:'ko', name:'Korean'}, {code:'ru', name:'Russian'}, {code:'ja', name:'Japanese'},
+  {code:'de', name:'German'}, {code:'it', name:'Italian'}, {code:'tl', name:'Tagalog'}, {code:'tr', name:'Turkish'},
+  {code:'fa', name:'Persian/Farsi'}, {code:'ur', name:'Urdu'}, {code:'bn', name:'Bengali'}, {code:'th', name:'Thai'},
+  {code:'pl', name:'Polish'}, {code:'other', name:'Other'},
+];
+const TRANSLATIONS = {
+  es: { journey:'Viaje', settings:'Ajustes', signOut:'Cerrar sesión', logIn:'Iniciar sesión', signUp:'Registrarse',
+    continueBtn:'Continuar', save:'Guardar', startConversation:'Iniciar conversación', finishScore:'Terminar y ver mi puntuación',
+    welcomeBack:'Bienvenido de nuevo', focusAreas:'Áreas de enfoque', yourJourney:'Tu viaje', dailyGoal:'Meta diaria',
+    needAccount:'¿Necesitas una cuenta? Regístrate', createAccount:'Crear cuenta' },
+  fr: { journey:'Parcours', settings:'Paramètres', signOut:'Déconnexion', logIn:'Connexion', signUp:"S'inscrire",
+    continueBtn:'Continuer', save:'Enregistrer', startConversation:'Commencer la conversation', finishScore:'Terminer et voir mon score',
+    welcomeBack:'Bon retour', focusAreas:"Domaines d'intérêt", yourJourney:'Votre parcours', dailyGoal:'Objectif quotidien',
+    needAccount:"Besoin d'un compte ? Inscrivez-vous", createAccount:'Créer un compte' },
+  pt: { journey:'Jornada', settings:'Configurações', signOut:'Sair', logIn:'Entrar', signUp:'Cadastrar-se',
+    continueBtn:'Continuar', save:'Salvar', startConversation:'Iniciar conversa', finishScore:'Terminar e ver minha pontuação',
+    welcomeBack:'Bem-vindo de volta', focusAreas:'Áreas de foco', yourJourney:'Sua jornada', dailyGoal:'Meta diária',
+    needAccount:'Precisa de uma conta? Cadastre-se', createAccount:'Criar conta' },
+  zh: { journey:'旅程', settings:'设置', signOut:'退出登录', logIn:'登录', signUp:'注册',
+    continueBtn:'继续', save:'保存', startConversation:'开始对话', finishScore:'完成并查看我的分数',
+    welcomeBack:'欢迎回来', focusAreas:'重点领域', yourJourney:'你的旅程', dailyGoal:'每日目标',
+    needAccount:'需要账户？注册', createAccount:'创建账户' },
+  ar: { journey:'الرحلة', settings:'الإعدادات', signOut:'تسجيل الخروج', logIn:'تسجيل الدخول', signUp:'إنشاء حساب',
+    continueBtn:'متابعة', save:'حفظ', startConversation:'ابدأ المحادثة', finishScore:'إنهاء ومشاهدة نتيجتي',
+    welcomeBack:'مرحبًا بعودتك', focusAreas:'مجالات التركيز', yourJourney:'رحلتك', dailyGoal:'الهدف اليومي',
+    needAccount:'تحتاج حساب؟ سجّل', createAccount:'إنشاء حساب' },
+  vi: { journey:'Hành trình', settings:'Cài đặt', signOut:'Đăng xuất', logIn:'Đăng nhập', signUp:'Đăng ký',
+    continueBtn:'Tiếp tục', save:'Lưu', startConversation:'Bắt đầu trò chuyện', finishScore:'Hoàn thành và xem điểm của tôi',
+    welcomeBack:'Chào mừng trở lại', focusAreas:'Lĩnh vực cần tập trung', yourJourney:'Hành trình của bạn', dailyGoal:'Mục tiêu hàng ngày',
+    needAccount:'Cần tài khoản? Đăng ký', createAccount:'Tạo tài khoản' },
+};
+const EN_CHROME = { journey:'Journey', settings:'Settings', signOut:'Sign out', logIn:'Log in', signUp:'Sign up',
+  continueBtn:'Continue', save:'Save', startConversation:'Start conversation', finishScore:'Finish & get my score',
+  welcomeBack:'Welcome back', focusAreas:'Focus areas', yourJourney:'Your journey', dailyGoal:'Daily goal',
+  needAccount:'Need an account? Sign up', createAccount:'Create account' };
+function t(key){
+  if(state.progress && state.progress.translateUI && state.progress.nativeLanguage){
+    const dict = TRANSLATIONS[state.progress.nativeLanguage];
+    if(dict && dict[key]) return dict[key];
+  }
+  return EN_CHROME[key] || key;
+}
 let state = {
   screen:'loading', session:null, profile:null,
   progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null,
     totalPracticeSeconds:0, practiceGoalMinutes:15, gems:0, avatarId:'girl-1', unlockedAvatars:['girl-1','girl-2','boy-1','boy-2'],
     accentPref:'en-US', dailyPracticeSeconds:0, dailyDate:null, dailyGoalRewardedDate:null,
-    themeId:'default', unlockedThemes:['default'], dreamGoal:null},
+    themeId:'default', unlockedThemes:['default'], dreamGoal:null, nativeLanguage:null, translateUI:false},
   diag:{idx:0, answers:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
@@ -311,6 +356,8 @@ async function loadProfileFromServer(){
       themeId: profile.theme_id||'default',
       unlockedThemes: profile.unlocked_themes||['default'],
       dreamGoal: profile.dream_goal||null,
+      nativeLanguage: profile.native_language||null,
+      translateUI: profile.translate_ui||false,
     };
   } else {
     state.profile = null;
@@ -338,6 +385,8 @@ async function saveProfileToServer(){
     theme_id: state.progress.themeId,
     unlocked_themes: state.progress.unlockedThemes,
     dream_goal: state.progress.dreamGoal,
+    native_language: state.progress.nativeLanguage,
+    translate_ui: state.progress.translateUI,
   })});
 }
 function updateStreak(){
@@ -395,11 +444,12 @@ function render(){
     progressPage: renderProgressPage, privacyPage: renderPrivacyPage, termsPage: renderTermsPage,
     waitingForConsent: renderWaitingForConsent, consentConfirmPage: renderConsentConfirmPage,
     rewardsPage: renderRewardsPage, levelsInfoPage: renderLevelsInfoPage, dreamGoalPage: renderDreamGoalPage,
+    languagePage: renderLanguagePage,
   };
   (map[state.screen] || renderLoginScreen)(app);
   saveSessionSnapshot();
 }
-const RESUMABLE_SCREENS = ['dashboard','stageDetail','conversation','targetedPractice','masteryPage','settingsPage','progressPage','rewardsPage','levelsInfoPage','diagnostic','diagResult','welcome','dreamGoalPage'];
+const RESUMABLE_SCREENS = ['dashboard','stageDetail','conversation','targetedPractice','masteryPage','settingsPage','progressPage','rewardsPage','levelsInfoPage','diagnostic','diagResult','welcome','dreamGoalPage','languagePage'];
 function saveSessionSnapshot(){
   try{
     if(RESUMABLE_SCREENS.includes(state.screen)){
@@ -431,13 +481,13 @@ function renderLoginScreen(app){
     </div>
     <div class="card">
       ${state.authError ? `<div class="error-box">${state.authError}</div>` : ''}
-      <h3>Log in</h3>
+      <h3>${t('logIn')}</h3>
       <input type="text" id="userInput" placeholder="Username" style="margin:12px 0 10px;">
       <input type="text" id="passInput" placeholder="Password" style="margin-bottom:16px;" data-pw="1">
-      <button class="btn block" id="loginBtn">Log in →</button>
+      <button class="btn block" id="loginBtn">${t('logIn')} →</button>
       <div class="row" style="justify-content:space-between;margin-top:14px;">
         <button class="back-link" id="forgotLink">Forgot password?</button>
-        <button class="back-link" id="signUpLink">Need an account? Sign up</button>
+        <button class="back-link" id="signUpLink">${t('needAccount')}</button>
       </div>
     </div>
     <div class="center" style="margin-top:16px;">
@@ -483,7 +533,7 @@ function renderSignUpScreen(app){
         <p class="muted" style="margin-bottom:8px;">Since you're under 13, we'll email a parent or guardian for approval before your account is active.</p>
         <input type="email" id="guardianEmailInput" placeholder="Parent/guardian email" style="margin-bottom:10px;">
       </div>
-      <button class="btn block" id="signUpBtn">Create account →</button>
+      <button class="btn block" id="signUpBtn">${t('createAccount')} →</button>
       <div style="margin-top:14px;">
         <button class="back-link" id="backToLogin">Already have an account? Log in</button>
       </div>
@@ -687,9 +737,45 @@ function renderDiagResult(app){
       <button class="btn block" id="goDash">See my journey →</button></div>`;
   app.appendChild(div);
   div.querySelector('#goDash').addEventListener('click', ()=>{
-    state.screen = state.progress.dreamGoal ? 'dashboard' : 'dreamGoalPage';
+    state.screen = state.progress.nativeLanguage ? (state.progress.dreamGoal ? 'dashboard' : 'dreamGoalPage') : 'languagePage';
     render();
   });
+}
+
+/* ============================= LANGUAGE ONBOARDING ============================= */
+function renderLanguagePage(app){
+  const div = document.createElement('div');
+  div.innerHTML = `
+    <div class="cover"><span class="eyebrow">One more thing</span><h1>What's your native language?</h1>
+      <p>This helps us personalize your experience.</p></div>
+    <div class="card">
+      <select id="langSelect" style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:15px;background:var(--white);color:var(--ink);">
+        <option value="">Select a language</option>
+        ${LANGUAGES.map(l=>`<option value="${l.code}">${l.name}</option>`).join('')}
+      </select>
+      <div id="translateQuestion" class="hidden" style="margin-top:16px;">
+        <h3>Translate the app into your language?</h3>
+        <p class="muted" style="margin-top:-4px;">If your language isn't fully supported yet, some parts will stay in English.</p>
+        <div class="row" style="margin-top:10px;">
+          <button class="btn secondary" id="translateYes">Yes, translate</button>
+          <button class="btn secondary" id="translateNo">No, keep English</button>
+        </div>
+      </div>
+    </div>
+  `;
+  app.appendChild(div);
+  const sel = div.querySelector('#langSelect');
+  const q = div.querySelector('#translateQuestion');
+  sel.addEventListener('change', ()=>{ q.classList.toggle('hidden', !sel.value); });
+  async function proceed(translate){
+    state.progress.nativeLanguage = sel.value;
+    state.progress.translateUI = translate;
+    await saveProfileToServer();
+    state.screen = state.progress.dreamGoal ? 'dashboard' : 'dreamGoalPage';
+    render();
+  }
+  div.querySelector('#translateYes').addEventListener('click', ()=>proceed(true));
+  div.querySelector('#translateNo').addEventListener('click', ()=>proceed(false));
 }
 
 /* ============================= DREAM GOAL ============================= */
@@ -743,16 +829,16 @@ function renderDashboard(app){
     <div class="top-nav">
       <div style="display:flex;align-items:center;gap:10px;">
         <span>${avatarHtml(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0], 32)}</span>
-        <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
+        <div><span class="eyebrow">${t('welcomeBack')}</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
         <span class="level-pill" id="levelPillBtn" style="cursor:pointer;">${state.profile.level} ⓘ</span>
         <button class="back-link" id="rewardsBtn">💎 ${state.progress.gems||0}</button>
-        <button class="back-link" id="settingsBtn">Settings</button>
-        <button class="back-link" id="signOutBtn">Sign out</button></div>
+        <button class="back-link" id="settingsBtn">${t('settings')}</button>
+        <button class="back-link" id="signOutBtn">${t('signOut')}</button></div>
     </div>
-    <div class="card" style="padding-bottom:6px;"><span class="eyebrow">Your journey</span>
+    <div class="card" style="padding-bottom:6px;"><span class="eyebrow">${t('yourJourney')}</span>
       ${state.progress.dreamGoal ? `<p class="muted" style="margin-bottom:10px;">🎯 Your goal: ${escapeHtml(state.progress.dreamGoal)}</p>` : ''}
       <div class="journey-scroll">${stopsHtml}</div></div>
     <div class="card">
@@ -783,7 +869,7 @@ function renderDailyGoalCard(container){
   const pct = Math.min(100, Math.round(todaySeconds/goalSeconds*100));
   const hitToday = state.progress.dailyGoalRewardedDate === today;
   container.innerHTML = `
-    <span class="eyebrow">Daily goal</span>
+    <span class="eyebrow">${t('dailyGoal')}</span>
     <div class="row" style="margin:8px 0 10px;">
       ${[5,10,15,20].map(m=>`<button class="btn ${goalMin===m?'':'secondary'}" data-goal="${m}" style="padding:8px 16px;font-size:13px;">${m} min</button>`).join('')}
     </div>
@@ -804,9 +890,9 @@ function renderMistakeSummary(container){
   const masteredCount = Object.keys(state.progress.masteredSkills||{}).length;
   const viewLink = masteredCount>0 ? `<button class="back-link" id="viewMasteryBtn" style="margin-top:8px;">View mastered skills (${masteredCount}) →</button>` : '';
   if(tags.length===0){
-    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>${viewLink}`;
+    container.innerHTML = `<span class="eyebrow">${t('focusAreas')}</span><p class="muted">Complete a speaking scenario and we'll track patterns here.</p>${viewLink}`;
   } else {
-    container.innerHTML = `<span class="eyebrow">Focus areas</span><p class="muted" style="margin-bottom:8px;">Tap any skill to practice it:</p>
+    container.innerHTML = `<span class="eyebrow">${t('focusAreas')}</span><p class="muted" style="margin-bottom:8px;">Tap any skill to practice it:</p>
       ${tags.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}
       ${viewLink}`;
     container.querySelectorAll('.mistake-chip').forEach(chip=>{
@@ -822,7 +908,7 @@ function renderMasteryPage(app){
   const mastered = Object.entries(state.progress.masteredSkills||{}).sort((a,b)=> new Date(b[1].date)-new Date(a[1].date));
   const active = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]);
   div.innerHTML = `
-    <button class="back-link" id="backBtn">← Journey</button>
+    <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="cover">
       <span class="eyebrow">Your progress</span>
       <h1>Skill mastery</h1>
@@ -857,7 +943,7 @@ function renderMasteryPage(app){
 function renderSettingsPage(app){
   const div = document.createElement('div');
   div.innerHTML = `
-    <button class="back-link" id="backBtn">← Journey</button>
+    <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="cover"><span class="eyebrow">Settings</span><h1>Your account</h1></div>
     <div class="card">
       <span class="eyebrow">Display name</span>
@@ -888,6 +974,19 @@ function renderSettingsPage(app){
       <button class="btn secondary" id="saveGoalTextBtn" style="margin-top:10px;">Save goal</button>
     </div>
     <div class="card">
+      <span class="eyebrow">Language</span>
+      <p class="muted" style="margin-bottom:10px;">Your native language and whether the app's menus are translated.</p>
+      <select id="settingsLangSelect" style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:15px;background:var(--white);color:var(--ink);margin-bottom:10px;">
+        <option value="">Select a language</option>
+        ${LANGUAGES.map(l=>`<option value="${l.code}" ${state.progress.nativeLanguage===l.code?'selected':''}>${l.name}</option>`).join('')}
+      </select>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;">
+        <input type="checkbox" id="translateCheck" ${state.progress.translateUI?'checked':''}>
+        <span>Translate app menus into my language</span>
+      </label>
+      <button class="btn secondary" id="saveLangBtn" style="margin-top:10px;">Save language</button>
+    </div>
+    <div class="card">
       <span class="eyebrow">Legal</span>
       <div class="row">
         <button class="back-link" id="privacyLink">Privacy Policy</button>
@@ -896,6 +995,13 @@ function renderSettingsPage(app){
     </div>
   `;
   app.appendChild(div);
+  div.querySelector('#saveLangBtn').addEventListener('click', async ()=>{
+    state.progress.nativeLanguage = div.querySelector('#settingsLangSelect').value || null;
+    state.progress.translateUI = div.querySelector('#translateCheck').checked;
+    div.querySelector('#saveLangBtn').disabled = true;
+    await saveProfileToServer();
+    render();
+  });
   div.querySelector('#accentSelect').addEventListener('change', async (e)=>{
     state.progress.accentPref = e.target.value;
     await saveProfileToServer();
@@ -931,13 +1037,13 @@ function renderStageDetail(app){
   const s = STAGES[state.activeStage-1]; const div = document.createElement('div');
   const topMistake = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1])[0];
   div.innerHTML = `
-    <button class="back-link" id="backBtn">← Journey</button>
+    <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="card">
       <span class="eyebrow">Stage ${s.n} · ${s.cefr}</span><h2>${s.icon} ${s.title}</h2><p class="muted">${s.theme}</p>
       <hr class="divider">
       <div class="lesson-row"><div class="lesson-info"><div class="lesson-icon">🗣️</div>
         <div><strong>Speaking scenario</strong><p class="muted" style="margin:2px 0 0;">${s.scenario}</p></div></div></div>
-      <button class="btn block" id="startConvo" style="margin-top:14px;">Start conversation →</button>
+      <button class="btn block" id="startConvo" style="margin-top:14px;">${t('startConversation')} →</button>
       ${topMistake ? `<hr class="divider"><div class="lesson-row"><div class="lesson-info"><div class="lesson-icon">🎯</div>
         <div><strong>Targeted practice</strong><p class="muted" style="margin:2px 0 0;">Focus: ${topMistake[0].replace(/-/g,' ')}</p></div></div>
         <button class="btn secondary" id="targetBtn">Practice</button></div>` : ''}
@@ -1014,7 +1120,7 @@ function renderConversation(app){
       <div class="chat-input-row"><button class="mic-btn" id="micBtn" title="Speak">🎤</button>
         <input type="text" id="chatInput" placeholder="Type your reply…"><button class="btn" id="sendBtn">Send</button></div>
     </div>
-    <button class="btn block secondary" id="endBtn" style="margin-top:14px;">Finish &amp; get my score →</button>`;
+    <button class="btn block secondary" id="endBtn" style="margin-top:14px;">${t('finishScore')} →</button>`;
   app.appendChild(div);
   const log = div.querySelector('#chatLog'); log.scrollTop = log.scrollHeight;
   div.querySelector('#backBtn').addEventListener('click', ()=>{
@@ -1205,7 +1311,7 @@ function renderTargetedPractice(app){
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
   if(q.level===2 && !tp.shownLevelUp){
-    div.innerHTML = `<button class="back-link" id="journeyBtn">← Journey</button>
+    div.innerHTML = `<button class="back-link" id="journeyBtn">← ${t("journey")}</button>
     <div class="cover center">
       <span class="eyebrow">Level up</span><h1>🎯 Level 2 unlocked</h1>
       <p>Nice work on the basics. These next four get harder — longer sentences, closer reading.</p>
@@ -1216,7 +1322,7 @@ function renderTargetedPractice(app){
     return;
   }
   div.innerHTML = `
-    <div class="top-nav"><button class="back-link" id="journeyBtn">← Journey</button>
+    <div class="top-nav"><button class="back-link" id="journeyBtn">← ${t("journey")}</button>
       <span class="mono muted" style="font-size:12px;">${tp.idx+1} / ${tp.questions.length}</span></div>
     <p class="muted" style="margin-top:-10px;margin-bottom:10px;">Targeted practice · ${tp.tag.replace(/-/g,' ')} · Level ${q.level||1}</p>
     <div class="card"><h2>${escapeHtml(q.prompt)}</h2>
@@ -1403,7 +1509,7 @@ function renderRewardsPage(app){
   const div = document.createElement('div');
   const currentAvatar = AVATARS.find(a=>a.id===state.progress.avatarId) || AVATARS[0];
   div.innerHTML = `
-    <button class="back-link" id="backBtn">← Journey</button>
+    <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="cover center">
       <span class="eyebrow">Your rewards</span>
       <div style="font-size:56px;margin:8px 0;">${avatarHtml(currentAvatar, 56)}</div>
@@ -1423,7 +1529,7 @@ function renderRewardsPage(app){
       <span class="eyebrow">Choose your avatar</span>
       <p class="muted" style="margin-bottom:12px;">Earn gems by finishing conversations (+5), mastering skills (+10), and hitting your daily goal (+15).</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;">
-       ${AVATARS.map(a=>{
+        ${AVATARS.map(a=>{
           const unlocked = (state.progress.unlockedAvatars||[]).includes(a.id);
           const selected = state.progress.avatarId === a.id;
           return `<button class="path-card ${selected?'selected':''}" data-avatar="${a.id}" data-cost="${a.cost}" style="text-align:center;padding:12px 6px;">
@@ -1496,7 +1602,7 @@ function renderRewardsPage(app){
 function renderLevelsInfoPage(app){
   const div = document.createElement('div');
   div.innerHTML = `
-    <button class="back-link" id="backBtn">← Journey</button>
+    <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="cover"><span class="eyebrow">English levels explained</span><h1>What CEFR levels mean</h1>
       <p>You're currently at <strong>${state.profile.level}</strong>.</p></div>
     <div class="card">
