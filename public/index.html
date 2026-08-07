@@ -106,6 +106,7 @@
   .spinner{width:26px;height:26px;border:3px solid var(--paper2);border-top-color:var(--teal);border-radius:50%;
     animation:spin .8s linear infinite;margin:0 auto;}
   @keyframes spin{to{transform:rotate(360deg);}}
+  @keyframes waveHand{0%,100%{transform:rotate(0deg);}25%{transform:rotate(20deg);}50%{transform:rotate(0deg);}75%{transform:rotate(20deg);}}
   .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .back-link{color:var(--muted);font-size:14px;background:none;padding:6px 0;}
   .back-link:hover{color:var(--ink);}
@@ -166,17 +167,23 @@ const CEFR_INFO = {
   C2: "Mastery. You can understand virtually everything you hear or read, summarize complex information, and express yourself precisely even in nuanced situations.",
 };
 const AVATARS = [
-  {id:'girl-1', emoji:'👧', label:'Girl', cost:0},
-  {id:'boy-1', emoji:'👦', label:'Boy', cost:0},
-  {id:'girl-2', emoji:'👧🏽', label:'Girl', cost:0},
-  {id:'boy-2', emoji:'👦🏽', label:'Boy', cost:0},
-  {id:'girl-3', emoji:'👩', label:'Girl', cost:15},
-  {id:'boy-3', emoji:'👨', label:'Boy', cost:15},
-  {id:'girl-4', emoji:'👱‍♀️', label:'Girl', cost:25},
-  {id:'boy-4', emoji:'👱‍♂️', label:'Boy', cost:25},
-  {id:'girl-5', emoji:'🧕', label:'Girl', cost:35},
-  {id:'boy-5', emoji:'🧔', label:'Boy', cost:35},
+  {id:'girl-1', emoji:'👧', label:'Girl', cost:0, animated:false},
+  {id:'boy-1', emoji:'👦', label:'Boy', cost:0, animated:false},
+  {id:'girl-2', emoji:'👧🏽', label:'Girl', cost:15, animated:false},
+  {id:'boy-2', emoji:'👦🏽', label:'Boy', cost:15, animated:false},
+  {id:'girl-3', emoji:'👩', label:'Girl', cost:20, animated:false},
+  {id:'boy-3', emoji:'👨', label:'Boy', cost:20, animated:false},
+  {id:'girl-4', emoji:'👧🏻', label:'Girl', cost:40, animated:true},
+  {id:'boy-4', emoji:'👦🏻', label:'Boy', cost:40, animated:true},
+  {id:'girl-5', emoji:'👩🏾', label:'Girl', cost:50, animated:true},
+  {id:'boy-5', emoji:'👨🏾', label:'Boy', cost:50, animated:true},
 ];
+function avatarHtml(a, size){
+  if(a.animated){
+    return `<span style="position:relative;display:inline-block;font-size:${size}px;line-height:1;">${a.emoji}<span style="position:absolute;top:-2px;right:-10px;font-size:${Math.round(size*0.45)}px;display:inline-block;animation:waveHand 1s ease-in-out infinite;transform-origin:70% 70%;">👋</span></span>`;
+  }
+  return `<span style="font-size:${size}px;line-height:1;">${a.emoji}</span>`;
+}
 
 const ACCOMPLISHMENTS = {
   1:"Successfully introduced yourself!", 2:"Successfully talked about your family!", 3:"Successfully arranged a meeting time!",
@@ -185,10 +192,27 @@ const ACCOMPLISHMENTS = {
   10:"Successfully talked about your job!", 11:"Successfully handled a phone call!", 12:"Successfully resolved a complaint!",
   13:"Successfully passed a job interview!", 14:"Successfully defended your opinion in a debate!", 15:"Successfully shared a nuanced opinion!",
 };
+const ACCENTS = [
+  {id:'en-US', label:'American'},
+  {id:'en-GB', label:'British'},
+  {id:'en-AU', label:'Australian'},
+  {id:'en-IN', label:'Indian'},
+  {id:'en-CA', label:'Canadian'},
+];
+const THEMES = [
+  {id:'default', name:'Sky Blue', paper:'#F3F8FF', paper2:'#DCEBFC', cost:0},
+  {id:'mint', name:'Mint', paper:'#F1FBF6', paper2:'#D8F2E3', cost:20},
+  {id:'lavender', name:'Lavender', paper:'#F6F3FC', paper2:'#E7DFF7', cost:20},
+  {id:'peach', name:'Peach', paper:'#FFF6F0', paper2:'#FCE3D2', cost:20},
+  {id:'blush', name:'Blush', paper:'#FFF3F5', paper2:'#FBDCE2', cost:20},
+  {id:'butter', name:'Butter', paper:'#FFFBEE', paper2:'#FBF0C4', cost:20},
+];
 let state = {
   screen:'loading', session:null, profile:null,
   progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null,
-    totalPracticeSeconds:0, practiceGoalMinutes:15, gems:0, avatarId:'girl-1', unlockedAvatars:['girl-1','girl-2','boy-1','boy-2']},
+    totalPracticeSeconds:0, practiceGoalMinutes:15, gems:0, avatarId:'girl-1', unlockedAvatars:['girl-1','girl-2','boy-1','boy-2'],
+    accentPref:'en-US', dailyPracticeSeconds:0, dailyDate:null, dailyGoalRewardedDate:null,
+    themeId:'default', unlockedThemes:['default'], dreamGoal:null},
   diag:{idx:0, answers:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
@@ -280,6 +304,13 @@ async function loadProfileFromServer(){
       gems: profile.gems||0,
       avatarId: profile.avatar_id||'girl-1',
       unlockedAvatars: profile.unlocked_avatars||['girl-1','girl-2','boy-1','boy-2'],
+      accentPref: profile.accent_pref||'en-US',
+      dailyPracticeSeconds: profile.daily_practice_seconds||0,
+      dailyDate: profile.daily_date||null,
+      dailyGoalRewardedDate: profile.daily_goal_rewarded_date||null,
+      themeId: profile.theme_id||'default',
+      unlockedThemes: profile.unlocked_themes||['default'],
+      dreamGoal: profile.dream_goal||null,
     };
   } else {
     state.profile = null;
@@ -300,6 +331,13 @@ async function saveProfileToServer(){
     gems: state.progress.gems,
     avatar_id: state.progress.avatarId,
     unlocked_avatars: state.progress.unlockedAvatars,
+    accent_pref: state.progress.accentPref,
+    daily_practice_seconds: state.progress.dailyPracticeSeconds,
+    daily_date: state.progress.dailyDate,
+    daily_goal_rewarded_date: state.progress.dailyGoalRewardedDate,
+    theme_id: state.progress.themeId,
+    unlocked_themes: state.progress.unlockedThemes,
+    dream_goal: state.progress.dreamGoal,
   })});
 }
 function updateStreak(){
@@ -309,6 +347,27 @@ function updateStreak(){
   const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0,10);
   state.progress.streakCount = (last === yesterday) ? (state.progress.streakCount||0)+1 : 1;
   state.progress.lastActiveDate = today;
+}
+function updateDailyProgress(elapsedSeconds){
+  const today = new Date().toISOString().slice(0,10);
+  if(state.progress.dailyDate !== today){
+    state.progress.dailyDate = today;
+    state.progress.dailyPracticeSeconds = 0;
+  }
+  state.progress.dailyPracticeSeconds = (state.progress.dailyPracticeSeconds||0) + elapsedSeconds;
+  const goalSeconds = (state.progress.practiceGoalMinutes||15)*60;
+  let goalHitNow = false;
+  if(state.progress.dailyPracticeSeconds >= goalSeconds && state.progress.dailyGoalRewardedDate !== today){
+    state.progress.gems = (state.progress.gems||0) + 15;
+    state.progress.dailyGoalRewardedDate = today;
+    goalHitNow = true;
+  }
+  return goalHitNow;
+}
+function applyTheme(themeId){
+  const t = THEMES.find(x=>x.id===themeId) || THEMES[0];
+  document.documentElement.style.setProperty('--paper', t.paper);
+  document.documentElement.style.setProperty('--paper2', t.paper2);
 }
 async function callBackend(endpoint, messages, system, maxTokens){
   const data = await authedFetch(endpoint, { method:'POST', body: JSON.stringify({messages, system}) });
@@ -335,12 +394,12 @@ function render(){
     masteryPage: renderMasteryPage, settingsPage: renderSettingsPage,
     progressPage: renderProgressPage, privacyPage: renderPrivacyPage, termsPage: renderTermsPage,
     waitingForConsent: renderWaitingForConsent, consentConfirmPage: renderConsentConfirmPage,
-    rewardsPage: renderRewardsPage, levelsInfoPage: renderLevelsInfoPage,
+    rewardsPage: renderRewardsPage, levelsInfoPage: renderLevelsInfoPage, dreamGoalPage: renderDreamGoalPage,
   };
   (map[state.screen] || renderLoginScreen)(app);
   saveSessionSnapshot();
 }
-const RESUMABLE_SCREENS = ['dashboard','stageDetail','conversation','targetedPractice','masteryPage','settingsPage','progressPage','rewardsPage','levelsInfoPage','diagnostic','diagResult','welcome'];
+const RESUMABLE_SCREENS = ['dashboard','stageDetail','conversation','targetedPractice','masteryPage','settingsPage','progressPage','rewardsPage','levelsInfoPage','diagnostic','diagResult','welcome','dreamGoalPage'];
 function saveSessionSnapshot(){
   try{
     if(RESUMABLE_SCREENS.includes(state.screen)){
@@ -627,7 +686,46 @@ function renderDiagResult(app){
     <div class="card"><p class="muted">15 stages, from simple introductions to confident debate. Each stage pairs a speaking scenario with live feedback.</p>
       <button class="btn block" id="goDash">See my journey →</button></div>`;
   app.appendChild(div);
-  div.querySelector('#goDash').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelector('#goDash').addEventListener('click', ()=>{
+    state.screen = state.progress.dreamGoal ? 'dashboard' : 'dreamGoalPage';
+    render();
+  });
+}
+
+/* ============================= DREAM GOAL ============================= */
+function renderDreamGoalPage(app){
+  const div = document.createElement('div');
+  if(state.dreamGoalJustSubmitted){
+    div.innerHTML = `
+      <div class="cover center">
+        <span class="eyebrow">You've got this</span><h1>Let's work together to achieve your goal.</h1>
+        <p>Every conversation and practice set from here on out is a step closer.</p>
+      </div>
+      <button class="btn block" id="startNowBtn">Start now →</button>
+    `;
+    app.appendChild(div);
+    div.querySelector('#startNowBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+    return;
+  }
+  div.innerHTML = `
+    <div class="cover"><span class="eyebrow">One last thing</span><h1>What's your goal?</h1>
+      <p>Why do you want to become proficient in English? For example: get a job, travel the world, feel confident in conversations.</p></div>
+    <div class="card">
+      <textarea id="goalInput" rows="4" placeholder="Type your goal here..." style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:'Inter',sans-serif;font-size:15px;"></textarea>
+      <button class="btn block" id="submitGoalBtn" style="margin-top:12px;" disabled>Continue →</button>
+    </div>
+  `;
+  app.appendChild(div);
+  const ta = div.querySelector('#goalInput');
+  const btn = div.querySelector('#submitGoalBtn');
+  ta.addEventListener('input', ()=>{ btn.disabled = ta.value.trim().length===0; });
+  btn.addEventListener('click', async ()=>{
+    state.progress.dreamGoal = ta.value.trim();
+    btn.disabled = true;
+    await saveProfileToServer();
+    state.dreamGoalJustSubmitted = true;
+    render();
+  });
 }
 
 /* ============================= DASHBOARD ============================= */
@@ -644,7 +742,7 @@ function renderDashboard(app){
   div.innerHTML = `
     <div class="top-nav">
       <div style="display:flex;align-items:center;gap:10px;">
-        <span style="font-size:32px;">${(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0]).emoji}</span>
+        <span>${avatarHtml(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0], 32)}</span>
         <div><span class="eyebrow">Welcome back</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -662,8 +760,10 @@ function renderDashboard(app){
       </div>
       <div class="progress-bar" style="margin-bottom:0;"><div style="width:${((CEFR.indexOf(state.profile.level)+1)/CEFR.length*100)}%;"></div></div>
     </div>
+    <div class="card" id="dailyGoalCard"></div>
     <div class="card" id="mistakesCard"></div>`;
   app.appendChild(div);
+  renderDailyGoalCard(div.querySelector('#dailyGoalCard'));
   div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
     state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
   }));
@@ -672,6 +772,30 @@ function renderDashboard(app){
   div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
   div.querySelector('#signOutBtn').addEventListener('click', signOut);
   renderMistakeSummary(div.querySelector('#mistakesCard'));
+}
+function renderDailyGoalCard(container){
+  const today = new Date().toISOString().slice(0,10);
+  const todaySeconds = state.progress.dailyDate===today ? (state.progress.dailyPracticeSeconds||0) : 0;
+  const goalMin = state.progress.practiceGoalMinutes||15;
+  const goalSeconds = goalMin*60;
+  const pct = Math.min(100, Math.round(todaySeconds/goalSeconds*100));
+  const hitToday = state.progress.dailyGoalRewardedDate === today;
+  container.innerHTML = `
+    <span class="eyebrow">Daily goal</span>
+    <div class="row" style="margin:8px 0 10px;">
+      ${[5,10,15,20].map(m=>`<button class="btn ${goalMin===m?'':'secondary'}" data-goal="${m}" style="padding:8px 16px;font-size:13px;">${m} min</button>`).join('')}
+    </div>
+    <div class="score-bar-label"><span>${Math.round(todaySeconds/60)} / ${goalMin} min today</span><span class="mono">${pct}%</span></div>
+    <div class="score-bar-track"><div class="score-bar-fill" style="width:${pct}%;"></div></div>
+    ${hitToday ? `<p style="font-weight:600;margin-top:10px;">🎯 Great work! You reached your daily goal!</p>` : ''}
+  `;
+  container.querySelectorAll('[data-goal]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.progress.practiceGoalMinutes = parseInt(btn.dataset.goal, 10);
+      await saveProfileToServer();
+      renderDailyGoalCard(container);
+    });
+  });
 }
 function renderMistakeSummary(container){
   const tags = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]).slice(0,5);
@@ -749,6 +873,19 @@ function renderSettingsPage(app){
       <button class="btn secondary" id="progressBtn">View progress chart</button>
     </div>
     <div class="card">
+      <span class="eyebrow">AI voice accent</span>
+      <p class="muted" style="margin-bottom:10px;">Choose the accent used when the AI speaks aloud during conversations.</p>
+      <select id="accentSelect" style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-size:15px;background:var(--white);color:var(--ink);">
+        ${ACCENTS.map(a=>`<option value="${a.id}" ${state.progress.accentPref===a.id?'selected':''}>${a.label}</option>`).join('')}
+      </select>
+    </div>
+    <div class="card">
+      <span class="eyebrow">Your goal</span>
+      <p class="muted" style="margin-bottom:10px;">Why are you learning English? (e.g. get a job, travel confidently, feel at home in conversations)</p>
+      <textarea id="goalTextarea" rows="3" style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:'Inter',sans-serif;font-size:15px;">${state.progress.dreamGoal||''}</textarea>
+      <button class="btn secondary" id="saveGoalTextBtn" style="margin-top:10px;">Save goal</button>
+    </div>
+    <div class="card">
       <span class="eyebrow">Legal</span>
       <div class="row">
         <button class="back-link" id="privacyLink">Privacy Policy</button>
@@ -757,6 +894,18 @@ function renderSettingsPage(app){
     </div>
   `;
   app.appendChild(div);
+  div.querySelector('#accentSelect').addEventListener('change', async (e)=>{
+    state.progress.accentPref = e.target.value;
+    await saveProfileToServer();
+  });
+  div.querySelector('#saveGoalTextBtn').addEventListener('click', async ()=>{
+    state.progress.dreamGoal = div.querySelector('#goalTextarea').value.trim();
+    div.querySelector('#saveGoalTextBtn').disabled = true;
+    await saveProfileToServer();
+    div.querySelector('#saveGoalTextBtn').disabled = false;
+    div.querySelector('#saveGoalTextBtn').textContent = 'Saved ✓';
+    setTimeout(()=>{ div.querySelector('#saveGoalTextBtn').textContent = 'Save goal'; }, 1500);
+  });
   div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
   div.querySelector('#saveNameBtn').addEventListener('click', async ()=>{
     const newName = div.querySelector('#nameInput').value.trim();
@@ -830,7 +979,13 @@ async function fetchAIReply(isOpening){
 }
 function speakText(text){
   try{ if(!window.speechSynthesis) return; window.speechSynthesis.cancel();
-    const u = new SpeechSynthesisUtterance(text); u.rate = state.convo.speed; u.lang='en-US'; window.speechSynthesis.speak(u);
+    const u = new SpeechSynthesisUtterance(text); u.rate = state.convo.speed;
+    const lang = state.progress.accentPref || 'en-US';
+    u.lang = lang;
+    const voices = window.speechSynthesis.getVoices();
+    const match = voices.find(v=>v.lang===lang) || voices.find(v=>v.lang.startsWith(lang.split('-')[0]));
+    if(match) u.voice = match;
+    window.speechSynthesis.speak(u);
   }catch(e){}
 }
 function startTimer(){
@@ -939,6 +1094,7 @@ ${transcript}`;
     const elapsed = Math.min(200, Math.round((Date.now() - (state.convo.startedAt||Date.now()))/1000));
     state.progress.totalPracticeSeconds = (state.progress.totalPracticeSeconds||0) + elapsed;
     state.progress.gems = (state.progress.gems||0) + 5;
+    state.dailyGoalJustHit = updateDailyProgress(elapsed);
     updateStreak();
     await saveProfileToServer();
     state.screen='scoreResult'; render();
@@ -967,6 +1123,7 @@ function renderScoreResult(app){
   div.innerHTML = `
     <div class="cover"><span class="eyebrow">Stage ${state.convo.stage.n} complete</span><h1>${banner || 'Nice work!'}</h1>
       ${avg>=70 && ACCOMPLISHMENTS[state.convo.stage.n] ? `<p style="font-weight:600;">🏆 ${ACCOMPLISHMENTS[state.convo.stage.n]}</p>` : ''}
+      ${state.dailyGoalJustHit ? `<p style="font-weight:600;">🎯 Great work! You reached your daily goal! +15 gems</p>` : ''}
       <p>${r.feedback||''}</p></div>
     <div class="card"><span class="eyebrow">Your scores</span>
       ${cats.map(([label,val])=>`<div class="score-bar-row"><div class="score-bar-label"><span>${label}</span><span class="mono">${val===null||val===undefined?'—':val}</span></div>
@@ -1152,7 +1309,7 @@ function renderPrivacyPage(app){
       <p><strong>Children's privacy:</strong> for users under 13, we require a parent or guardian's email and consent before creating an account, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
       <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
       <p><strong>Contact:</strong> support@speakup-esl.org</p>
-      <p class="muted">This is not legal advice if concerned of privacy please email sshosalimova@gmail.com.</p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1169,7 +1326,7 @@ function renderTermsPage(app){
       <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUp ESL is a practice tool, not a substitute for a certified language course or exam.</p>
       <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
       <p><strong>Contact:</strong> support@speakup-esl.org</p>
-      <p class="muted">This is not legal advice if concerned of privacy please email sshosalimova@gmail.com. </p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1247,7 +1404,7 @@ function renderRewardsPage(app){
     <button class="back-link" id="backBtn">← Journey</button>
     <div class="cover center">
       <span class="eyebrow">Your rewards</span>
-      <div style="font-size:56px;margin:8px 0;">${currentAvatar.emoji}</div>
+      <div style="font-size:56px;margin:8px 0;">${avatarHtml(currentAvatar, 56)}</div>
       <h1>💎 ${state.progress.gems||0} gems</h1>
     </div>
     <div class="card">
@@ -1262,14 +1419,29 @@ function renderRewardsPage(app){
     </div>
     <div class="card">
       <span class="eyebrow">Choose your avatar</span>
-      <p class="muted" style="margin-bottom:12px;">Earn gems by finishing conversations (+5) and mastering skills (+10).</p>
+      <p class="muted" style="margin-bottom:12px;">Earn gems by finishing conversations (+5), mastering skills (+10), and hitting your daily goal (+15).</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;">
-        ${AVATARS.map(a=>{
+       ${AVATARS.map(a=>{
           const unlocked = (state.progress.unlockedAvatars||[]).includes(a.id);
           const selected = state.progress.avatarId === a.id;
           return `<button class="path-card ${selected?'selected':''}" data-avatar="${a.id}" data-cost="${a.cost}" style="text-align:center;padding:12px 6px;">
-            <div style="font-size:32px;">${a.emoji}</div>
-            <div class="muted" style="font-size:11px;margin-top:4px;">${unlocked ? (selected?'Selected':'Tap to use') : `💎 ${a.cost}`}</div>
+            <div style="font-size:32px;">${avatarHtml(a, 32)}</div>
+            <div class="muted" style="font-size:10px;margin-top:4px;">${a.animated ? 'Waving' : ''}</div>
+            <div class="muted" style="font-size:11px;">${unlocked ? (selected?'Selected':'Tap to use') : `💎 ${a.cost}`}</div>
+          </button>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="card">
+      <span class="eyebrow">App color theme</span>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:10px;margin-top:10px;">
+        ${THEMES.map(t=>{
+          const unlocked = (state.progress.unlockedThemes||[]).includes(t.id);
+          const selected = state.progress.themeId === t.id;
+          return `<button class="path-card ${selected?'selected':''}" data-theme="${t.id}" data-cost="${t.cost}" style="text-align:center;padding:12px 6px;">
+            <div style="width:32px;height:32px;border-radius:50%;background:${t.paper2};border:2px solid ${t.paper};margin:0 auto;"></div>
+            <div class="muted" style="font-size:11px;margin-top:6px;">${t.name}</div>
+            <div class="muted" style="font-size:10px;">${unlocked ? (selected?'Selected':'Tap to use') : `💎 ${t.cost}`}</div>
           </button>`;
         }).join('')}
       </div>
@@ -1297,6 +1469,21 @@ function renderRewardsPage(app){
         state.progress.unlockedAvatars = [...(state.progress.unlockedAvatars||[]), id];
       }
       state.progress.avatarId = id;
+      await saveProfileToServer();
+      render();
+    });
+  });
+  div.querySelectorAll('[data-theme]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      const id = btn.dataset.theme; const cost = parseInt(btn.dataset.cost, 10);
+      const unlocked = (state.progress.unlockedThemes||[]).includes(id);
+      if(!unlocked){
+        if((state.progress.gems||0) < cost){ return; }
+        state.progress.gems -= cost;
+        state.progress.unlockedThemes = [...(state.progress.unlockedThemes||[]), id];
+      }
+      state.progress.themeId = id;
+      applyTheme(id);
       await saveProfileToServer();
       render();
     });
@@ -1359,6 +1546,7 @@ async function boot(){
   if(!state.session){ state.screen='loginScreen'; render(); return; }
   try{
     await loadProfileFromServer();
+    applyTheme(state.progress.themeId);
     const needsConsentGate = state.profile && state.profile.age && state.profile.age < 13 && !state.profile.guardianConsentAt;
     let restored = false;
     if(!needsConsentGate){
