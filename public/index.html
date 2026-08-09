@@ -3,9 +3,9 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpeakUp ESL — Learn English for Real Life</title>
-<meta name="description" content="Practice English the way you'll actually use it. SpeakUp ESL pairs AI conversation practice, grammar coaching, and progress tracking to help ESL learners build real-world speaking confidence.">
-<meta property="og:title" content="SpeakUp ESL — Learn English for Real Life">
+<title>SpeakUpESL — Learn English for Real Life</title>
+<meta name="description" content="Practice English the way you'll actually use it. SpeakUpESL pairs AI conversation practice, grammar coaching, and progress tracking to help ESL learners build real-world speaking confidence.">
+<meta property="og:title" content="SpeakUpESL — Learn English for Real Life">
 <meta property="og:description" content="Practice English the way you'll actually use it — AI conversations, grammar practice, and progress tracking for ESL learners.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://speakup-esl.org">
@@ -247,7 +247,7 @@ const TRANSLATIONS = {
     continueBtn:'متابعة', save:'حفظ', startConversation:'ابدأ المحادثة', finishScore:'إنهاء ومشاهدة نتيجتي',
     welcomeBack:'مرحبًا بعودتك', focusAreas:'مجالات التركيز', yourJourney:'رحلتك', dailyGoal:'الهدف اليومي',
     needAccount:'تحتاج حساب؟ سجّل', createAccount:'إنشاء حساب' },
- vi: { journey:'Hành trình', settings:'Cài đặt', signOut:'Đăng xuất', logIn:'Đăng nhập', signUp:'Đăng ký',
+  vi: { journey:'Hành trình', settings:'Cài đặt', signOut:'Đăng xuất', logIn:'Đăng nhập', signUp:'Đăng ký',
     continueBtn:'Tiếp tục', save:'Lưu', startConversation:'Bắt đầu trò chuyện', finishScore:'Hoàn thành và xem điểm của tôi',
     welcomeBack:'Chào mừng trở lại', focusAreas:'Lĩnh vực cần tập trung', yourJourney:'Hành trình của bạn', dailyGoal:'Mục tiêu hàng ngày',
     needAccount:'Cần tài khoản? Đăng ký', createAccount:'Tạo tài khoản' },
@@ -529,7 +529,7 @@ function saveSessionSnapshot(){
   }catch(e){}
 }
 function renderLoading(app){
-  app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading SpeakUp ESL…</p></div>`;
+  app.innerHTML = `<div class="center" style="padding-top:120px;"><div class="spinner"></div><p class="muted" style="margin-top:14px;">Loading SpeakUpESL…</p></div>`;
 }
 
 /* ============================= AUTH SCREENS ============================= */
@@ -539,7 +539,7 @@ function renderLoginScreen(app){
     <div class="cover">
       <div class="stamp-mark">SPEAK<br>UP</div>
       <span class="eyebrow">English for real life</span>
-      <h1>SpeakUp ESL</h1>
+      <h1>SpeakUpESL</h1>
       <p>Practice English the way you'll actually use it.</p>
     </div>
     <div class="card">
@@ -1283,7 +1283,7 @@ function renderScoreResult(app){
       <button class="btn block" id="back">Back to journey</button></div>`;
     app.appendChild(div); div.querySelector('#back').addEventListener('click', ()=>{ state.screen='dashboard'; render(); }); return;
   }
- const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],
+  const cats = [['Vocabulary', r.scores.vocabulary],['Grammar', r.scores.grammar],
     ['Question comprehension', r.scores.comprehension],['Confidence', r.scores.confidence]];
   const numericScores = [r.scores.vocabulary, r.scores.grammar, r.scores.comprehension, r.scores.confidence].filter(v=>typeof v==='number');
   const avg = numericScores.length ? numericScores.reduce((a,b)=>a+b,0)/numericScores.length : 0;
@@ -1480,7 +1480,7 @@ function renderPrivacyPage(app){
       <p><strong>Children's privacy:</strong> for users under 13, we require a parent or guardian's email and consent before creating an account, in an effort to comply with COPPA. Parents may contact us to review or delete their child's data.</p>
       <p><strong>Your choices:</strong> you can update your name in Settings, or contact us to delete your account and data.</p>
       <p><strong>Contact:</strong> support@speakup-esl.org</p>
-      <p class="muted">This is not legal advice if concerned about privacy in the app please email sshosalimova@gmail.com. </p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1492,12 +1492,12 @@ function renderTermsPage(app){
     <button class="back-link" id="backBtn">← Back</button>
     <div class="cover"><span class="eyebrow">Legal</span><h1>Terms of Service</h1><p>Last updated: 2026</p></div>
     <div class="card">
-      <p><strong>Using SpeakUp ESL:</strong> SpeakUp ESL is an English-practice app. You agree to use it honestly, not to abuse or overload the AI conversation or scoring features, and not to attempt to access other users' accounts or data.</p>
+      <p><strong>Using SpeakUpESL:</strong> SpeakUpESL is an English-practice app. You agree to use it honestly, not to abuse or overload the AI conversation or scoring features, and not to attempt to access other users' accounts or data.</p>
       <p><strong>Accounts:</strong> you're responsible for keeping your password secure. Users under 13 need a parent or guardian's consent to create an account.</p>
-      <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUp ESL is a practice tool, not a substitute for a certified language course or exam.</p>
+      <p><strong>AI content:</strong> conversations, scores, and feedback are generated by AI and may occasionally be inaccurate. SpeakUpESL is a practice tool, not a substitute for a certified language course or exam.</p>
       <p><strong>Availability:</strong> we may update, limit, or discontinue features at any time, including daily usage limits on AI features.</p>
       <p><strong>Contact:</strong> support@speakup-esl.org</p>
-      <p class="muted">This is not legal advice if concerned about privacy in the app please email sshosalimova@gmail.com. </p>
+      <p class="muted">This is a starting template, not legal advice — have it reviewed by a lawyer before relying on it for a real public launch.</p>
     </div>
   `;
   app.appendChild(div);
@@ -1535,7 +1535,7 @@ function renderConsentConfirmPage(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover"><span class="eyebrow">Parental consent</span><h1>Confirm approval</h1>
-      <p>Click below to approve your child's SpeakUp ESL account.</p></div>
+      <p>Click below to approve your child's SpeakUpESL account.</p></div>
     <div class="card" id="consentResult">
       <button class="btn block" id="approveBtn">Approve account →</button>
     </div>
