@@ -1,0 +1,8 @@
+[{
+  "relation": ["delegate_permission/common.handle_all_urls"],
+  "target": {
+    "namespace": "android_app",
+    "package_name": "org.speakupesl.app",
+    "sha256_cert_fingerprints": ["B6:28:67:F5:EA:BE:9E:F0:11:EF:3D:46:EC:50:77:98:20:AB:0B:09:6D:DF:02:3B:8C:8B:3D:B3:7B:C2:B3:C3"]
+  }
+}]
