@@ -334,6 +334,9 @@ async function signUpUser(username, email, password, age, guardianEmail){
     options:{ data:{ username: clean }, emailRedirectTo: window.location.href }
   });
   if(error) return error.message;
+  if(data.user && data.user.identities && data.user.identities.length === 0){
+    return "An account with this email already exists. Try logging in, or use \"Forgot password\" below if you don't remember your password.";
+  }
   try{
     const r = await fetch('/api/register-username', {
       method:'POST', headers:{'Content-Type':'application/json'},
