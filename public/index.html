@@ -196,6 +196,20 @@ function groupMistakesByCategory(entries){
   });
   return Object.values(groups);
 }
+  const WIDA_LEVELS = {
+  A1: {code:1, name:'Entering'}, A2: {code:2, name:'Emerging'}, B1: {code:3, name:'Developing'},
+  B2: {code:4, name:'Expanding'}, C1: {code:5, name:'Bridging'}, C2: {code:6, name:'Reaching'},
+};
+function displayLevelShort(cefr){
+  if(state.progress && state.progress.levelSystem==='wida' && WIDA_LEVELS[cefr]) return `WIDA ${WIDA_LEVELS[cefr].code}`;
+  return cefr;
+}
+function displayLevelLong(cefr){
+  if(state.progress && state.progress.levelSystem==='wida' && WIDA_LEVELS[cefr]){
+    const w = WIDA_LEVELS[cefr]; return `WIDA Level ${w.code}: ${w.name} (CEFR ${cefr})`;
+  }
+  return `CEFR ${cefr}`;
+}
 const CEFR_INFO = {
   A1: "Beginner. You can understand and use basic phrases, introduce yourself, and ask simple questions about familiar topics.",
   A2: "Elementary. You can communicate in simple, routine situations — shopping, describing your background, and talking about immediate needs.",
@@ -348,7 +362,7 @@ let state = {
   progress:{stagesCompleted:[], mistakeTags:{}, scoreHistory:[], masteredSkills:{}, streakCount:0, lastActiveDate:null,
     totalPracticeSeconds:0, practiceGoalMinutes:15, gems:0, avatarId:'girl-1', unlockedAvatars:['girl-1','girl-2','boy-1','boy-2'],
     accentPref:'en-US', dailyPracticeSeconds:0, dailyDate:null, dailyGoalRewardedDate:null,
-    themeId:'default', unlockedThemes:['default'], dreamGoal:null, nativeLanguage:null, translateUI:false},
+        themeId:'default', unlockedThemes:['default'], dreamGoal:null, nativeLanguage:null, translateUI:false, levelSystem:'cefr'},
   diag:{idx:0, answers:{}}, selectedPath:null, activeStage:null,
   convo:{messages:[], timerId:null, secondsLeft:180, speed:1, recognizing:false},
   lastScoreResult:null, targetedPractice:null, authError:null,
@@ -452,6 +466,7 @@ async function loadProfileFromServer(){
       dreamGoal: profile.dream_goal||null,
       nativeLanguage: profile.native_language||null,
       translateUI: profile.translate_ui||false,
+      levelSystem: profile.level_system||'cefr',
     };
   } else {
     state.profile = null;
@@ -481,6 +496,7 @@ async function saveProfileToServer(){
     dream_goal: state.progress.dreamGoal,
     native_language: state.progress.nativeLanguage,
     translate_ui: state.progress.translateUI,
+    level_system: state.progress.levelSystem,
   })});
 }
 function updateStreak(){
@@ -823,7 +839,7 @@ function renderDiagResult(app){
   const div = document.createElement('div');
   div.innerHTML = `
     <div class="cover center">
-      <span class="eyebrow">Your result</span><h1>Level ${state.profile.level}</h1>
+     <span class="eyebrow">Your result</span><h1>${displayLevelLong(state.profile.level)}</h1>
       <p>Nice work, ${state.profile.name}. You'll start at<br><strong style="color:var(--gold);">Stage ${state.profile.currentStage}: ${STAGES[state.profile.currentStage-1].title}</strong></p>
     </div>
     <div class="card"><p class="muted">${CEFR_INFO[state.profile.level]||''}</p></div>
@@ -927,7 +943,7 @@ function renderDashboard(app){
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
-        <span class="level-pill" id="levelPillBtn" style="cursor:pointer;">${state.profile.level} ⓘ</span>
+        ${state.profile.level} to ${displayLevelShort(state.profile.level)}
         <button class="back-link" id="rewardsBtn">💎 ${state.progress.gems||0}</button>
         <button class="back-link" id="settingsBtn">${t('settings')}</button>
         <button class="back-link" id="signOutBtn">${t('signOut')}</button></div>
@@ -1110,6 +1126,14 @@ function renderSettingsPage(app){
       <textarea id="goalTextarea" rows="3" style="width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;font-family:'Inter',sans-serif;font-size:15px;">${state.progress.dreamGoal||''}</textarea>
       <button class="btn secondary" id="saveGoalTextBtn" style="margin-top:10px;">Save goal</button>
     </div>
+        <div class="card">
+      <span class="eyebrow">Level display</span>
+      <p class="muted" style="margin-bottom:10px;">Choose how your English level is labeled throughout the app.</p>
+      <div class="row">
+        <button class="btn ${state.progress.levelSystem==='cefr'?'':'secondary'}" data-level-system="cefr">CEFR (A1–C2)</button>
+        <button class="btn ${state.progress.levelSystem==='wida'?'':'secondary'}" data-level-system="wida">WIDA (1–6)</button>
+      </div>
+    </div>
     <div class="card">
       <span class="eyebrow">Language</span>
       <p class="muted" style="margin-bottom:10px;">Your native language and whether the app's menus are translated.</p>
@@ -1132,6 +1156,13 @@ function renderSettingsPage(app){
     </div>
   `;
   app.appendChild(div);
+   div.querySelectorAll('[data-level-system]').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      state.progress.levelSystem = btn.dataset.levelSystem;
+      await saveProfileToServer();
+      render();
+    });
+  });
   div.querySelector('#saveLangBtn').addEventListener('click', async ()=>{
     state.progress.nativeLanguage = div.querySelector('#settingsLangSelect').value || null;
     state.progress.translateUI = div.querySelector('#translateCheck').checked;
