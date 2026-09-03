@@ -248,7 +248,6 @@ const ACCENTS = [
   {id:'en-US', label:'American'},
   {id:'en-GB', label:'British'},
   {id:'en-AU', label:'Australian'},
-  {id:'en-IN', label:'Indian'},
   {id:'en-CA', label:'Canadian'},
 ];
 const THEMES = [
@@ -1263,8 +1262,10 @@ function speakText(text){
     const lang = state.progress.accentPref || 'en-US';
     u.lang = lang;
     const voices = window.speechSynthesis.getVoices();
-    const match = voices.find(v=>v.lang===lang) || voices.find(v=>v.lang.startsWith(lang.split('-')[0]));
-    if(match) u.voice = match;
+    const candidates = voices.filter(v=>v.lang===lang);
+    const fallbackCandidates = candidates.length ? candidates : voices.filter(v=>v.lang.startsWith(lang.split('-')[0]));
+    const best = fallbackCandidates.find(v=>!v.localService) || fallbackCandidates.find(v=>!/compact/i.test(v.name)) || fallbackCandidates[0];
+    if(best) u.voice = best;
     window.speechSynthesis.speak(u);
   }catch(e){}
 }
