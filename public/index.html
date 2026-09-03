@@ -952,9 +952,13 @@ function renderDashboard(app){
       ${state.progress.dreamGoal ? `<p class="muted" style="margin-bottom:10px;">🎯 Your goal: ${escapeHtml(state.progress.dreamGoal)}</p>` : ''}
       <div class="journey-scroll">${stopsHtml}</div></div>
     <div class="card">
-      <span class="eyebrow">English level progress</span>
+      <span class="eyebrow">${state.progress.levelSystem==='wida' ? 'WIDA level progress' : 'English level progress'}</span>
       <div class="row" style="justify-content:space-between;margin:8px 0 6px;font-size:12px;" class="muted">
-        ${CEFR.map(l=>`<span class="mono" style="color:${l===state.profile.level?'var(--stamp)':'var(--muted)'};font-weight:${l===state.profile.level?'700':'400'};">${l}</span>`).join('')}
+        ${CEFR.map(l=>{
+          const isCurrent = l===state.profile.level;
+          const label = state.progress.levelSystem==='wida' ? WIDA_LEVELS[l].code : l;
+          return `<span class="mono" style="color:${isCurrent?'var(--stamp)':'var(--muted)'};font-weight:${isCurrent?'700':'400'};">${label}</span>`;
+        }).join('')}
       </div>
       <div class="progress-bar" style="margin-bottom:0;"><div style="width:${((CEFR.indexOf(state.profile.level)+1)/CEFR.length*100)}%;"></div></div>
     </div>
@@ -1769,20 +1773,26 @@ function renderRewardsPage(app){
 /* ============================= LEVELS INFO ============================= */
 function renderLevelsInfoPage(app){
   const div = document.createElement('div');
+  const isWida = state.progress.levelSystem === 'wida';
   div.innerHTML = `
     <button class="back-link" id="backBtn">← ${t("journey")}</button>
-    <div class="cover"><span class="eyebrow">English levels explained</span><h1>What CEFR levels mean</h1>
-      <p>You're currently at <strong>${state.profile.level}</strong>.</p></div>
+    <div class="cover"><span class="eyebrow">${isWida ? 'WIDA levels explained' : 'English levels explained'}</span>
+      <h1>${isWida ? 'What WIDA levels mean' : 'What CEFR levels mean'}</h1>
+      <p>You're currently at <strong>${displayLevelShort(state.profile.level)}</strong>.</p></div>
     <div class="card">
-      ${CEFR.map(level=>`
+      ${CEFR.map(level=>{
+        const isCurrent = level===state.profile.level;
+        const shortLabel = isWida ? WIDA_LEVELS[level].code : level;
+        const heading = isWida ? `WIDA ${WIDA_LEVELS[level].code}: ${WIDA_LEVELS[level].name}` : level;
+        return `
         <div class="lesson-row">
           <div class="lesson-info">
-            <div class="lesson-icon">${level===state.profile.level?'⭐':level}</div>
-            <div><strong>${level}${level===state.profile.level?' (you are here)':''}</strong>
+            <div class="lesson-icon">${isCurrent?'⭐':shortLabel}</div>
+            <div><strong>${heading}${isCurrent?' (you are here)':''}</strong>
               <p class="muted" style="margin:2px 0 0;">${CEFR_INFO[level]}</p></div>
           </div>
         </div>
-      `).join('')}
+      `;}).join('')}
     </div>
   `;
   app.appendChild(div);
