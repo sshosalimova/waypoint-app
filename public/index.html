@@ -120,7 +120,9 @@
   @keyframes waveHand{0%,100%{transform:rotate(0deg);}25%{transform:rotate(20deg);}50%{transform:rotate(0deg);}75%{transform:rotate(20deg);}}
   .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .back-link{color:var(--muted);font-size:14px;background:none;padding:6px 0;}
-  .back-link:hover{color:var(--ink);}
+    .back-link:hover{color:var(--ink);}
+  .focus-hover-label{opacity:0;transition:opacity .15s;}
+  .focus-areas-btn:hover .focus-hover-label{opacity:1;}
   @media (max-width:420px){.path-choice{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -892,10 +894,10 @@ function renderDashboard(app){
     return `<div class="stop ${clickable}" data-stage="${s.n}"><div class="track"></div>
       <div class="node ${cls}">${completed.includes(s.n)?'✓':s.n}</div><div class="stop-label">${s.title}</div></div>`;
   }).join('');
-  div.innerHTML = `
+   div.innerHTML = `
     <div class="top-nav">
       <div style="display:flex;align-items:center;gap:10px;">
-        <span>${avatarHtml(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0], 32)}</span>
+        <button id="avatarBtn" title="Change avatar" style="background:none;border:none;padding:0;cursor:pointer;">${avatarHtml(AVATARS.find(a=>a.id===state.progress.avatarId)||AVATARS[0], 32)}</button>
         <div><span class="eyebrow">${t('welcomeBack')}</span><h2 style="margin-top:2px;">${state.profile.name}</h2></div>
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
@@ -916,7 +918,22 @@ function renderDashboard(app){
       <div class="progress-bar" style="margin-bottom:0;"><div style="width:${((CEFR.indexOf(state.profile.level)+1)/CEFR.length*100)}%;"></div></div>
     </div>
     <div class="card" id="dailyGoalCard"></div>
-    <div class="card" id="mistakesCard"></div>`;
+    <button class="card focus-areas-btn" id="focusAreasBtn" style="width:100%;text-align:left;cursor:pointer;display:flex;align-items:center;justify-content:space-between;">
+      <span class="eyebrow" style="margin-bottom:0;">🎯 Focus Areas</span>
+      <span class="back-link focus-hover-label">View →</span>
+    </button>`;
+  app.appendChild(div);
+  renderDailyGoalCard(div.querySelector('#dailyGoalCard'));
+  div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
+    state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
+  }));
+  div.querySelector('#avatarBtn').addEventListener('click', ()=>{ state.screen='rewardsPage'; render(); });
+  div.querySelector('#rewardsBtn').addEventListener('click', ()=>{ state.screen='rewardsPage'; render(); });
+  div.querySelector('#levelPillBtn').addEventListener('click', ()=>{ state.screen='levelsInfoPage'; render(); });
+  div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
+  div.querySelector('#signOutBtn').addEventListener('click', signOut);
+  div.querySelector('#focusAreasBtn').addEventListener('click', ()=>{ state.screen='masteryPage'; render(); });
+}
   app.appendChild(div);
   renderDailyGoalCard(div.querySelector('#dailyGoalCard'));
   div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
@@ -981,10 +998,17 @@ function renderMasteryPage(app){
       <h1>Skill mastery</h1>
       <p>${mastered.length} skill${mastered.length===1?'':'s'} mastered so far.</p>
     </div>
-    <div class="card">
+        <div class="card">
       <span class="eyebrow">Still practicing</span>
       ${active.length===0 ? `<p class="muted">Nothing currently flagged — nice work!</p>` :
-        active.map(([tag,count])=>`<button class="mistake-chip" data-tag="${tag}" style="cursor:pointer;">${tag.replace(/-/g,' ')} · ${count}× →</button>`).join('')}
+        active.map(([tag,count])=>`
+          <div class="lesson-row">
+            <div class="lesson-info"><div class="lesson-icon">🎯</div>
+              <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Missed ${count}× so far</p></div>
+            </div>
+            <button class="btn secondary" data-tag="${tag}">Practice →</button>
+          </div>
+        `).join('')}
     </div>
     <div class="card">
       <span class="eyebrow">Mastered</span>
