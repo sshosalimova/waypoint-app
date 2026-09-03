@@ -934,17 +934,6 @@ function renderDashboard(app){
   div.querySelector('#signOutBtn').addEventListener('click', signOut);
   div.querySelector('#focusAreasBtn').addEventListener('click', ()=>{ state.screen='masteryPage'; render(); });
 }
-  app.appendChild(div);
-  renderDailyGoalCard(div.querySelector('#dailyGoalCard'));
-  div.querySelectorAll('.stop.clickable').forEach(s=>s.addEventListener('click', ()=>{
-    state.activeStage = parseInt(s.dataset.stage); state.screen='stageDetail'; render();
-  }));
-  div.querySelector('#rewardsBtn').addEventListener('click', ()=>{ state.screen='rewardsPage'; render(); });
-  div.querySelector('#levelPillBtn').addEventListener('click', ()=>{ state.screen='levelsInfoPage'; render(); });
-  div.querySelector('#settingsBtn').addEventListener('click', ()=>{ state.screen='settingsPage'; render(); });
-  div.querySelector('#signOutBtn').addEventListener('click', signOut);
-  renderMistakeSummary(div.querySelector('#mistakesCard'));
-}
 function renderDailyGoalCard(container){
   const today = new Date().toISOString().slice(0,10);
   const todaySeconds = state.progress.dailyDate===today ? (state.progress.dailyPracticeSeconds||0) : 0;
