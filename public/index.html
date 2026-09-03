@@ -120,7 +120,11 @@
   @keyframes waveHand{0%,100%{transform:rotate(0deg);}25%{transform:rotate(20deg);}50%{transform:rotate(0deg);}75%{transform:rotate(20deg);}}
   .top-nav{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;}
   .back-link{color:var(--muted);font-size:14px;background:none;padding:6px 0;}
-    .back-link:hover{color:var(--ink);}
+      .back-link:hover{color:var(--ink);}
+  .accordion-header{width:100%;display:flex;justify-content:space-between;align-items:center;padding:14px 4px;background:none;border:none;cursor:pointer;border-bottom:1px dashed var(--line);text-align:left;font-weight:600;font-size:15px;color:var(--ink);}
+  .accordion-arrow{transition:transform .15s;color:var(--muted);}
+  .accordion-header.open .accordion-arrow{transform:rotate(90deg);}
+  .accordion-content{padding-top:4px;}
   .focus-hover-label{opacity:0;transition:opacity .15s;}
   .focus-areas-btn:hover .focus-hover-label{opacity:1;}
   @media (max-width:420px){.path-choice{grid-template-columns:1fr;}}
@@ -171,6 +175,27 @@ const DIAGNOSTIC = [
   {level:"C1", q:"The proposal was met with ___ skepticism from the board.", options:["a widespread","widespread","wide spread of","widely spread"], a:1},
   {level:"C2", q:"Choose the most nuanced fit: \"Her argument, while ___, ultimately failed to persuade the committee.\"", options:["good","cogent","nice","true"], a:1}
 ];
+const MISTAKE_CATEGORIES = [
+  { id:'tense', label:'Verb Tenses', keywords:['tense','past','present','future','perfect','continuous','simple-past','simple-present'] },
+  { id:'grammar', label:'Grammar & Sentence Structure', keywords:['agreement','preposition','article','subject','object','clause','conjunction','word-order','plural','singular'] },
+  { id:'vocab', label:'Vocabulary & Word Choice', keywords:['vocabulary','word-choice','phrasal','idiom','collocation'] },
+];
+function categorizeMistakeTag(tag){
+  const lower = tag.toLowerCase();
+  for(const cat of MISTAKE_CATEGORIES){
+    if(cat.keywords.some(k=>lower.includes(k))) return cat;
+  }
+  return { id:'other', label:'Other' };
+}
+function groupMistakesByCategory(entries){
+  const groups = {};
+  entries.forEach(entry=>{
+    const cat = categorizeMistakeTag(entry[0]);
+    if(!groups[cat.id]) groups[cat.id] = { label: cat.label, items: [] };
+    groups[cat.id].items.push(entry);
+  });
+  return Object.values(groups);
+}
 const CEFR_INFO = {
   A1: "Beginner. You can understand and use basic phrases, introduce yourself, and ask simple questions about familiar topics.",
   A2: "Elementary. You can communicate in simple, routine situations — shopping, describing your background, and talking about immediate needs.",
@@ -980,6 +1005,42 @@ function renderMasteryPage(app){
   const div = document.createElement('div');
   const mastered = Object.entries(state.progress.masteredSkills||{}).sort((a,b)=> new Date(b[1].date)-new Date(a[1].date));
   const active = Object.entries(state.progress.mistakeTags||{}).sort((a,b)=>b[1]-a[1]);
+  const activeGroups = groupMistakesByCategory(active);
+  const masteredGroups = groupMistakesByCategory(mastered);
+
+  const renderActiveGroup = (group, idx) => `
+    <button class="accordion-header" data-active-idx="${idx}">
+      <span>${group.label} (${group.items.length})</span>
+      <span class="accordion-arrow">▸</span>
+    </button>
+    <div class="accordion-content hidden" data-active-content="${idx}">
+      ${group.items.map(([tag,count])=>`
+        <div class="lesson-row">
+          <div class="lesson-info"><div class="lesson-icon">🎯</div>
+            <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Missed ${count}× so far</p></div>
+          </div>
+          <button class="btn secondary" data-tag="${tag}">Practice →</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  const renderMasteredGroup = (group, idx) => `
+    <button class="accordion-header" data-mastered-idx="${idx}">
+      <span>${group.label} (${group.items.length})</span>
+      <span class="accordion-arrow">▸</span>
+    </button>
+    <div class="accordion-content hidden" data-mastered-content="${idx}">
+      ${group.items.map(([tag,info])=>`
+        <div class="lesson-row">
+          <div class="lesson-info"><div class="lesson-icon">✅</div>
+            <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Mastered ${new Date(info.date).toLocaleDateString()} · scored ${info.score}</p></div>
+          </div>
+          <button class="btn secondary" data-tag="${tag}">Practice again</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
   div.innerHTML = `
     <button class="back-link" id="backBtn">← ${t("journey")}</button>
     <div class="cover">
@@ -987,33 +1048,29 @@ function renderMasteryPage(app){
       <h1>Skill mastery</h1>
       <p>${mastered.length} skill${mastered.length===1?'':'s'} mastered so far.</p>
     </div>
-        <div class="card">
+    <div class="card">
       <span class="eyebrow">Still practicing</span>
-      ${active.length===0 ? `<p class="muted">Nothing currently flagged — nice work!</p>` :
-        active.map(([tag,count])=>`
-          <div class="lesson-row">
-            <div class="lesson-info"><div class="lesson-icon">🎯</div>
-              <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Missed ${count}× so far</p></div>
-            </div>
-            <button class="btn secondary" data-tag="${tag}">Practice →</button>
-          </div>
-        `).join('')}
+      ${active.length===0 ? `<p class="muted">Nothing currently flagged — nice work!</p>` : activeGroups.map(renderActiveGroup).join('')}
     </div>
     <div class="card">
       <span class="eyebrow">Mastered</span>
-      ${mastered.length===0 ? `<p class="muted">Score 6/8 or better on a targeted practice set to mark a skill mastered — it'll stop showing up as a focus area.</p>` :
-        mastered.map(([tag,info])=>`
-          <div class="lesson-row">
-            <div class="lesson-info"><div class="lesson-icon">✅</div>
-              <div><strong>${tag.replace(/-/g,' ')}</strong><p class="muted" style="margin:2px 0 0;">Mastered ${new Date(info.date).toLocaleDateString()} · scored ${info.score}</p></div>
-            </div>
-            <button class="btn secondary" data-tag="${tag}" data-retry="1">Practice again</button>
-          </div>
-        `).join('')}
+      ${mastered.length===0 ? `<p class="muted">Score 6/8 or better on a targeted practice set to mark a skill mastered — it'll stop showing up as a focus area.</p>` : masteredGroups.map(renderMasteredGroup).join('')}
     </div>
   `;
   app.appendChild(div);
   div.querySelector('#backBtn').addEventListener('click', ()=>{ state.screen='dashboard'; render(); });
+  div.querySelectorAll('[data-active-idx]').forEach(header=>{
+    header.addEventListener('click', ()=>{
+      header.classList.toggle('open');
+      div.querySelector(`[data-active-content="${header.dataset.activeIdx}"]`).classList.toggle('hidden');
+    });
+  });
+  div.querySelectorAll('[data-mastered-idx]').forEach(header=>{
+    header.addEventListener('click', ()=>{
+      header.classList.toggle('open');
+      div.querySelector(`[data-mastered-content="${header.dataset.masteredIdx}"]`).classList.toggle('hidden');
+    });
+  });
   div.querySelectorAll('[data-tag]').forEach(el=>{
     el.addEventListener('click', ()=>{ startTargetedPractice(el.dataset.tag); });
   });
