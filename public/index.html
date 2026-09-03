@@ -943,7 +943,7 @@ function renderDashboard(app){
       </div>
       <div style="display:flex;align-items:center;gap:10px;">
         ${state.progress.streakCount>0 ? `<span class="level-pill" style="background:var(--stamp);color:var(--white);">🔥 ${state.progress.streakCount} day${state.progress.streakCount===1?'':'s'}</span>` : ''}
-        ${state.profile.level} to ${displayLevelShort(state.profile.level)}
+        <span class="level-pill" id="levelPillBtn" style="cursor:pointer;">${displayLevelShort(state.profile.level)} ⓘ</span>
         <button class="back-link" id="rewardsBtn">💎 ${state.progress.gems||0}</button>
         <button class="back-link" id="settingsBtn">${t('settings')}</button>
         <button class="back-link" id="signOutBtn">${t('signOut')}</button></div>
